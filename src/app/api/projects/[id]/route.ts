@@ -1,6 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects } from "@/db/schema";
+import {
+  deleteDevelopmentProject,
+  getDevelopmentProject,
+  isDevelopmentProjectStoreEnabled,
+  updateDevelopmentProject,
+} from "@/lib/development-project-store";
 import { projectFromRow, sanitizeProjectPayload } from "@/lib/project-records";
 import { getRequestUserId } from "@/lib/server-auth";
 
@@ -18,6 +24,12 @@ export async function GET(_request: Request, context: ProjectRouteContext) {
     if (!userId) return jsonError("Unauthorized", 401, "unauthorized");
 
     const { id } = await context.params;
+    if (isDevelopmentProjectStoreEnabled()) {
+      const project = getDevelopmentProject(userId, id);
+      if (!project) return jsonError("Project not found", 404, "project_not_found");
+      return Response.json({ project });
+    }
+
     const [row] = await getDb()
       .select()
       .from(projects)
@@ -43,6 +55,12 @@ export async function PATCH(request: Request, context: ProjectRouteContext) {
     const project = sanitizeProjectPayload(body.project);
     if (!project || project.id !== id) {
       return jsonError("Invalid project data", 400, "invalid_project");
+    }
+
+    if (isDevelopmentProjectStoreEnabled()) {
+      const updated = updateDevelopmentProject(userId, project);
+      if (!updated) return jsonError("Project not found", 404, "project_not_found");
+      return Response.json({ project: updated });
     }
 
     const [row] = await getDb()
@@ -82,6 +100,12 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
     if (!userId) return jsonError("Unauthorized", 401, "unauthorized");
 
     const { id } = await context.params;
+    if (isDevelopmentProjectStoreEnabled()) {
+      const deleted = deleteDevelopmentProject(userId, id);
+      if (!deleted) return jsonError("Project not found", 404, "project_not_found");
+      return Response.json({ ok: true });
+    }
+
     const [row] = await getDb()
       .delete(projects)
       .where(and(eq(projects.id, id), eq(projects.ownerId, userId)))
