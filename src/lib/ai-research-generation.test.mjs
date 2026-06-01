@@ -1082,11 +1082,11 @@ test("equilibrium generation falls back when provider only returns a symbolic fa
   );
 
   assert.equal(result.usedFallback, true);
-  assert.equal(result.project.equilibriumResult?.status, "symbolic_failure");
-  assert.equal(result.project.equilibriumResult?.closedForm, "");
+  assert.equal(result.project.equilibriumResult?.status, "implicit_system");
+  assert.match(result.project.equilibriumResult?.closedForm ?? "", /F\(z,\\theta\)=0/);
   assert.equal(
     result.project.researchSession?.assetSummary.pendingDecision?.kind,
-    "solve_equilibrium"
+    "analyze_properties"
   );
   assert.match(
     result.project.equilibriumResult?.warnings.join("\n") ?? "",

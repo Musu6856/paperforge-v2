@@ -183,7 +183,7 @@ test("adopts seller multihoming with a direction-specific fallback scaffold", ()
   );
 });
 
-test("seller-multihoming symbolic solve fails instead of reusing default closed form", () => {
+test("seller-multihoming symbolic solve returns implicit system instead of default closed form", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform seller multihoming",
@@ -196,8 +196,8 @@ test("seller-multihoming symbolic solve fails instead of reusing default closed 
   const solved = generateSymbolicEquilibrium(confirmed);
 
   assert.equal(solved.researchSession?.phase, "equilibrium");
-  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
-  assert.equal(solved.equilibriumResult?.closedForm, "");
+  assert.equal(solved.equilibriumResult?.status, "implicit_system");
+  assert.match(solved.equilibriumResult?.closedForm ?? "", /F\(z,\\theta\)=0/);
   assert.doesNotMatch(
     solved.equilibriumResult?.derivation ?? "",
     /\\tau_A\^\*=\\tau_B\^\*=\\frac\{t_S-2\\alpha_B\}\{q\}/
@@ -208,11 +208,11 @@ test("seller-multihoming symbolic solve fails instead of reusing default closed 
   );
   assert.equal(
     solved.researchSession?.assetSummary.pendingDecision?.kind,
-    "solve_equilibrium"
+    "analyze_properties"
   );
 });
 
-test("seller-multihoming symbolic failure blocks default property analysis", () => {
+test("seller-multihoming implicit system enables implicit property analysis", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform seller multihoming",
@@ -224,14 +224,17 @@ test("seller-multihoming symbolic failure blocks default property analysis", () 
     )
   );
 
-  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
-  assert.throws(
-    () => generatePropertyAnalysis(solved),
-    /solved symbolic equilibrium asset/
+  assert.equal(solved.equilibriumResult?.status, "implicit_system");
+  const analyzed = generatePropertyAnalysis(solved);
+  assert.equal(analyzed.researchSession?.phase, "analysis");
+  assert.equal(analyzed.propertyAnalyses?.length, 3);
+  assert.match(
+    analyzed.propertyAnalyses?.[0]?.symbolicResult ?? "",
+    /J_zF/
   );
 });
 
-test("other non-default directions fail until mechanism functions are concretized", () => {
+test("other non-default directions return implicit systems until mechanisms are concretized", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform quality disclosure",
@@ -251,16 +254,16 @@ test("other non-default directions fail until mechanism functions are concretize
     ...(solved.equilibriumResult?.warnings ?? []),
   ].join("\n");
 
-  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
+  assert.equal(solved.equilibriumResult?.status, "implicit_system");
   assert.match(combinedText, /quality-disclosure-trust|direction-specific/i);
-  assert.equal(solved.equilibriumResult?.closedForm, "");
+  assert.match(solved.equilibriumResult?.closedForm ?? "", /F\(z,\\theta\)=0/);
   assert.match(
     combinedText,
     /unresolved mechanism function|unsupported/i
   );
   assert.equal(
     solved.researchSession?.assetSummary.pendingDecision?.kind,
-    "solve_equilibrium"
+    "analyze_properties"
   );
 });
 

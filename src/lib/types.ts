@@ -141,7 +141,13 @@ export interface HotellingModel {
 }
 
 export interface EquilibriumResult {
-  status: "idle" | "solved" | "needs_revision" | "symbolic_failure";
+  status:
+    | "idle"
+    | "solved"
+    | "reaction_function"
+    | "implicit_system"
+    | "needs_revision"
+    | "symbolic_failure";
   concept: string;
   solvingSteps: string[];
   focs: string[];

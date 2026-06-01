@@ -1,4 +1,5 @@
 import type { GenerateResearchProjectResult } from "./api";
+import { isAnalysisReadyEquilibriumStatus } from "./equilibrium-status.ts";
 import type { ResearchProject } from "./types";
 
 export function getPersistableResearchProject(
@@ -16,7 +17,9 @@ function hasPersistableFallbackAsset(project: ResearchProject) {
   const equilibriumStatus = project.equilibriumResult?.status;
   const hasPropertyAnalyses = Boolean(project.propertyAnalyses?.length);
 
-  if (phase === "equilibrium") return equilibriumStatus === "solved";
+  if (phase === "equilibrium") {
+    return isAnalysisReadyEquilibriumStatus(equilibriumStatus);
+  }
   if (hasPropertyAnalyses) return phase === "analysis";
   return false;
 }

@@ -70,6 +70,7 @@ import {
   generateSymbolicEquilibrium,
 } from "./research-session.ts";
 import { evaluateHotellingModelSolvability } from "./research-model-solvability.ts";
+import { isAnalysisReadyEquilibriumStatus } from "./equilibrium-status.ts";
 
 type DiscoverPayload = {
   assistantMessage?: unknown;
@@ -458,13 +459,13 @@ function validateEquilibriumCompletion(
   const assistantMessage = parseText(payload.assistantMessage);
   if (
     !equilibriumResult ||
-    equilibriumResult.status !== "solved" ||
+    !isAnalysisReadyEquilibriumStatus(equilibriumResult.status) ||
     !assistantMessage
   ) {
     return {
       ok: false,
       reason:
-        "response must include assistantMessage and a solved symbolic equilibriumResult with closed-form or reaction-function solution, not numeric output or a symbolic-failure draft",
+        "response must include assistantMessage and a symbolic equilibriumResult with status solved, reaction_function, or implicit_system; do not return numeric output or a symbolic-failure draft",
     };
   }
 

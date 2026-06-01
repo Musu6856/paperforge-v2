@@ -16,6 +16,7 @@ This repository is the new Agent-focused PaperForge v2 workspace.
 - `885f368 feat: add symbolic solver and agent trace UI`
 - `897d0d6 fix: persist local projects and normalize raw latex`
 - `94b01ea fix: submit chat input on enter`
+- `66c6297 docs: update handoff after local fixes`
 
 ## Product Direction
 
@@ -48,8 +49,19 @@ Current scope:
 - Added a compact Agent progress surface under the latest assistant message in the middle conversation.
 - Re-verified the middle conversation Agent progress surface with a local project: the summary appeared under the assistant reply, expanded to show workflow/action/duration and all three Mastra steps, and browser error console remained empty.
 - Started the symbolic equilibrium milestone with a narrow deterministic Hotelling solver under `src/lib/symbolic-equilibrium-solver.ts`.
-- The local solver now returns the closed-form commission/subsidy equilibrium only for the canonical two-platform, two-sided Hotelling structure; unresolved mechanism functions or noncanonical profit equations return `symbolic_failure` instead of reusing the default closed-form result.
-- `generateSymbolicEquilibrium` is now wired through the deterministic solver, and property analysis is blocked unless the equilibrium result is actually `solved`.
+- The local solver now returns the closed-form commission/subsidy equilibrium only for the canonical two-platform, two-sided Hotelling structure.
+- Noncanonical but still structured models no longer get forced into the default closed-form result:
+  - canonical Hotelling demand with noncanonical profit equations returns `reaction_function`;
+  - structured mechanism models that are not closed-form-ready return `implicit_system`;
+  - unsupported platform structures still return `symbolic_failure`.
+- `generateSymbolicEquilibrium` is wired through the deterministic solver, and property analysis is allowed for `solved`, `reaction_function`, and `implicit_system` while still blocking `symbolic_failure`.
+- Provider parsing, provider fallback attachment, local fallback persistence, right-side patch application, flow labels, and workbench status labels now understand `reaction_function` and `implicit_system`.
+- The Mastra Agent runtime has been split into a more standard structure under `src/lib/agent-runtime/`:
+  - `workflows/research-workflow.ts` owns the Mastra workflow;
+  - `steps/` owns the three workflow steps and their schemas;
+  - `tools/research-generation-tool.ts` wraps the structured research generator;
+  - `traces/research-trace.ts` owns trace labels, summaries, and run attachment.
+- The compatibility entry `src/lib/agent-runtime/research-workflow.ts` still re-exports `runResearchAgentWorkflow`, so the API route and existing tests do not need import changes.
 - Development no-database project storage now persists to `.paperforge-dev/projects.json`, so local projects survive browser refreshes and dev server restarts.
 - The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
 - The center chat composer now submits on plain Enter, keeps Shift+Enter for multiline drafts, and avoids submitting while IME composition is active.
@@ -69,6 +81,13 @@ npm run build
 Known current lint state:
 
 - `npm run lint` exits with 0 errors and one existing warning in `src/components/research-workspace/pane-splitter.tsx` about `aria-orientation` on a button.
+
+Latest verification on the current branch:
+
+- `node --test "src/**/*.test.mjs"` passed, 227/227.
+- `npx tsc --noEmit` passed.
+- `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
+- `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
 
 ## Local Run
 
@@ -116,11 +135,18 @@ Pass criteria:
 
 ## Next Priority
 
-1. Continue the symbolic equilibrium milestone beyond the canonical Hotelling core.
+1. Finish verification for the current branch, then commit this checkpoint.
+2. Browser-smoke the local research flow after the commit, especially:
+   - local project persistence after refresh;
+   - middle conversation detailed process display;
+   - right-side Agent trace;
+   - `implicit_system` property-analysis path for non-default directions.
+3. Continue the symbolic equilibrium milestone beyond the current typed scaffolds.
 
 Recommended next implementation step:
 
-- Extend solver coverage only when the model structure is explicit enough to verify: first add a typed reaction-function/implicit-system result for concretized mechanisms, then add UI copy that explains how to narrow unsupported models.
+- Add real symbolic narrowing for explicit mechanism equations after the model includes concrete utility, revenue, and cost terms. Keep returning `reaction_function` or `implicit_system` until the solver can prove a closed form.
+- Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should remain deterministic trace steps or become model-backed planning/summarization steps. Their current short durations are expected because they are deterministic wrappers, not separate LLM calls.
 
 ## Boundaries
 
@@ -128,4 +154,5 @@ Recommended next implementation step:
 - Do not rebuild the whole app yet.
 - Do not add a second root-level Agent framework directory.
 - Keep Agent orchestration under `src/lib/agent-runtime/` for this v2 repo unless the architecture is intentionally changed.
-- Property analysis and full paper drafting are not the priority for the next step.
+- Do not disturb the middle conversation detailed process display unless explicitly requested.
+- Property analysis and full paper drafting are still secondary to stable symbolic assets and Agent trace structure.

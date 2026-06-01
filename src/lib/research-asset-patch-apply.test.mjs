@@ -126,6 +126,40 @@ test("applies an equilibrium patch to the right-side equilibrium result", () => 
   );
 });
 
+test("applies an equilibrium patch that changes status to implicit system", () => {
+  const project = createSolvedProject();
+  const patch = {
+    id: "patch-equilibrium-status",
+    kind: "equilibrium",
+    summary: "改为隐式系统",
+    status: "proposed",
+    createdAt: 1710000000001,
+    changes: [
+      {
+        kind: "replace",
+        path: "equilibriumResult.status",
+        value: "implicit_system",
+      },
+      {
+        kind: "replace",
+        path: "equilibriumResult.closedForm",
+        value: "F(z,\\theta)=0",
+      },
+    ],
+  };
+
+  const nextProject = applyResearchAssetPatchToProject(project, patch, {
+    now: 1710000000002,
+  });
+
+  assert.equal(nextProject.equilibriumResult?.status, "implicit_system");
+  assert.equal(nextProject.equilibriumResult?.closedForm, "F(z,\\theta)=0");
+  assert.equal(
+    nextProject.researchSession?.assetSummary.pendingDecision?.kind,
+    "analyze_properties"
+  );
+});
+
 test("applies several model symbol operations and marks downstream assets stale", () => {
   const project = createSolvedProject();
   const patch = {

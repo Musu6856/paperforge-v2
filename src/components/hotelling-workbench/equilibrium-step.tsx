@@ -19,6 +19,8 @@ const STATUS_OPTIONS: Array<{
 }> = [
   { value: "idle", label: "待求解" },
   { value: "solved", label: "已求解" },
+  { value: "reaction_function", label: "反应函数" },
+  { value: "implicit_system", label: "隐式系统" },
   { value: "needs_revision", label: "需修正" },
   { value: "symbolic_failure", label: "符号失败" },
 ];

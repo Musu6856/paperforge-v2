@@ -1,7 +1,11 @@
 import type { EquilibriumResult, PropertyAnalysis } from "../types";
 
 export function isSymbolicEquilibriumResult(result: EquilibriumResult) {
-  if (result.status === "idle" || result.status === "needs_revision") {
+  if (
+    result.status === "idle" ||
+    result.status === "needs_revision" ||
+    result.status === "symbolic_failure"
+  ) {
     return false;
   }
 

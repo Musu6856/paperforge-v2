@@ -253,6 +253,8 @@ function parseEquilibriumStatus(
   if (
     value === "idle" ||
     value === "solved" ||
+    value === "reaction_function" ||
+    value === "implicit_system" ||
     value === "needs_revision" ||
     value === "symbolic_failure"
   ) {

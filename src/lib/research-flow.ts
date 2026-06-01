@@ -6,6 +6,7 @@ import type {
   ResearchSessionDecision,
   ResearchSessionEquilibriumStatus,
 } from "./types";
+import { isAnalysisReadyEquilibriumStatus } from "./equilibrium-status.ts";
 
 export type ResearchFlowState = {
   pendingKind?: ResearchSessionDecision["kind"];
@@ -226,7 +227,7 @@ export function getResearchFlowState(
 }
 
 function isUsableEquilibriumStatus(status?: EquilibriumResult["status"]) {
-  return status === "solved";
+  return isAnalysisReadyEquilibriumStatus(status);
 }
 
 function createFreshResearchAssetFreshness(): ResearchAssetFreshnessMap {
@@ -255,6 +256,10 @@ function formatEquilibriumStatus(
       return "需要修订";
     case "solved":
       return "已生成符号均衡";
+    case "reaction_function":
+      return "已生成反应函数系统";
+    case "implicit_system":
+      return "已生成隐式符号系统";
     case "symbolic_failure":
       return "未得到闭式均衡";
     default:

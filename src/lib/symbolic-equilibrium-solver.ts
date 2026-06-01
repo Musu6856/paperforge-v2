@@ -7,6 +7,12 @@ export function solveSymbolicHotellingEquilibrium(
   const unsupportedReasons = getUnsupportedReasons(model);
 
   if (unsupportedReasons.length > 0) {
+    const extendedResult = createExtendedSymbolicEquilibriumResult(
+      model,
+      unsupportedReasons
+    );
+    if (extendedResult) return extendedResult;
+
     return createUnsupportedEquilibriumResult(unsupportedReasons);
   }
 
@@ -123,6 +129,175 @@ function isCanonicalProfitB(expression: string) {
   );
 }
 
+function createExtendedSymbolicEquilibriumResult(
+  model: HotellingModel,
+  reasons: string[]
+): EquilibriumResult | null {
+  if (!hasTwoNamedPlatforms(model) || !hasMinimumSymbolicSystem(model)) {
+    return null;
+  }
+
+  if (hasCanonicalUtilities(model)) {
+    return createReactionFunctionEquilibriumResult(model, reasons);
+  }
+
+  return createImplicitSystemEquilibriumResult(model, reasons);
+}
+
+function hasMinimumSymbolicSystem(model: HotellingModel) {
+  return (
+    model.utilityFunctions.length >= 2 &&
+    hasProfitForPlatform(model, "A") &&
+    hasProfitForPlatform(model, "B") &&
+    getStrategicDecisionVariables(model).length > 0
+  );
+}
+
+function hasProfitForPlatform(model: HotellingModel, platform: "A" | "B") {
+  return model.profitFunctions.some(
+    (entry) => entry.platform.trim().toUpperCase() === platform
+  );
+}
+
+function getStrategicDecisionVariables(model: HotellingModel) {
+  const variables = model.timing.flatMap((stage) => stage.decisions);
+  return [...new Set(variables.map(normalizeDecisionSymbol).filter(Boolean))];
+}
+
+function getPlatformDecisionVariables(
+  model: HotellingModel,
+  platform: "A" | "B"
+) {
+  const suffixPatterns = [
+    new RegExp(`_\\{?${platform}\\}?$`),
+    new RegExp(`_${platform}(?:\\b|$)`),
+  ];
+  const platformVariables = getStrategicDecisionVariables(model).filter(
+    (decision) =>
+      suffixPatterns.some((pattern) => pattern.test(decision)) &&
+      !/^n_/.test(stripLatexSlash(decision)) &&
+      !/^[xy]$/.test(stripLatexSlash(decision))
+  );
+
+  if (platformVariables.length > 0) return platformVariables;
+
+  return [`\\tau_${platform}`];
+}
+
+function normalizeDecisionSymbol(symbol: string) {
+  return symbol.trim().replace(/\s+/g, "");
+}
+
+function stripLatexSlash(symbol: string) {
+  return symbol.replace(/^\\/, "");
+}
+
+function createPlatformFocs(model: HotellingModel, platform: "A" | "B") {
+  return getPlatformDecisionVariables(model, platform).map(
+    (decision) => `\\frac{\\partial \\Pi_${platform}}{\\partial ${decision}}=0`
+  );
+}
+
+function createReactionFunctionEquilibriumResult(
+  model: HotellingModel,
+  reasons: string[]
+): EquilibriumResult {
+  const decisionsA = getPlatformDecisionVariables(model, "A");
+  const decisionsB = getPlatformDecisionVariables(model, "B");
+  const zA = decisionsA.join(",");
+  const zB = decisionsB.join(",");
+
+  return {
+    status: "reaction_function",
+    concept: "Reaction-function symbolic equilibrium system",
+    solvingSteps: [
+      "Keep the canonical two-sided Hotelling demand equations instead of reusing the canonical closed-form commission-subsidy solution.",
+      "Substitute demand shares into the platform-specific profit functions supplied by the current model.",
+      "Differentiate each platform profit with respect to its own strategic variables to define best-response equations.",
+      "Represent equilibrium as the fixed point of the two platform reaction functions, then state the symbolic conditions needed to narrow it to closed form.",
+    ],
+    focs: [
+      ...createPlatformFocs(model, "A"),
+      ...createPlatformFocs(model, "B"),
+      "z_A=R_A(z_B;\\theta)",
+      "z_B=R_B(z_A;\\theta)",
+    ],
+    conditions: [
+      ...reasons,
+      "Interior demand shares: n_i^B,n_i^S\\in(0,1).",
+      "Local optimality: each platform Hessian with respect to its own decision vector is negative definite on the maintained region.",
+      "Reaction fixed point: z_A=R_A(z_B;\\theta), z_B=R_B(z_A;\\theta).",
+    ],
+    closedForm:
+      `R_A(${zB};\\theta)=\\arg\\max_{${zA}}\\Pi_A(${zA},${zB};\\theta),\\quad ` +
+      `R_B(${zA};\\theta)=\\arg\\max_{${zB}}\\Pi_B(${zA},${zB};\\theta)`,
+    derivation:
+      "The model preserves enough Hotelling demand structure to derive reaction functions, but the current profit equations are not the canonical commission-subsidy form. PaperForge therefore reports the symbolic best-response system instead of fabricating a closed form. To narrow this to a closed-form equilibrium, concretize any remaining mechanism terms, substitute the demand shares into both profit functions, solve the listed FOCs jointly, and verify the Hessian and interior-share conditions.",
+    code: `# reaction-function symbolic scaffold
+import sympy as sp
+
+# 1. Define demand shares from the Hotelling indifference system.
+# 2. Substitute demand into Pi_A and Pi_B from the current model.
+# 3. Build FOCs for each platform decision.
+# 4. Solve reaction fixed point z_A = R_A(z_B; theta), z_B = R_B(z_A; theta).
+`,
+    warnings: [
+      "No closed-form equilibrium was asserted; this is a reaction-function representation.",
+      "Use this result to inspect the symbolic FOCs and narrow the model before claiming closed form.",
+      ...reasons,
+    ],
+  };
+}
+
+function createImplicitSystemEquilibriumResult(
+  model: HotellingModel,
+  reasons: string[]
+): EquilibriumResult {
+  const decisions = getStrategicDecisionVariables(model);
+  const z = [...decisions, "n_A^B", "n_B^B", "n_A^S", "n_B^S"].join(",");
+
+  return {
+    status: "implicit_system",
+    concept: "Implicit symbolic equilibrium system",
+    solvingSteps: [
+      "Collect the current utility indifference conditions, platform profit FOCs, feasibility equations, and active mechanism constraints.",
+      "Define the endogenous vector z from platform decisions, demand shares, and any active mechanism states.",
+      "Represent the equilibrium as F(z,\\theta)=0 instead of claiming a closed-form solution.",
+      "Use the implicit-function theorem to identify comparative statics once the active region and Jacobian conditions are verified.",
+    ],
+    focs: [
+      ...createPlatformFocs(model, "A"),
+      ...createPlatformFocs(model, "B"),
+      "U_A^B-U_B^B=0",
+      "U_A^S-U_B^S=0",
+      "F(z,\\theta)=0",
+    ],
+    conditions: [
+      ...reasons,
+      "Feasibility: demand shares and participation variables stay in [0,1].",
+      "Regularity: \\det J_zF(z^*,\\theta)\\ne0 on the maintained active region.",
+      "Narrowing requirement: replace unresolved mechanism functions with concrete symbolic equations before asserting closed form.",
+    ],
+    closedForm: `F(z,\\theta)=0,\\quad z=(${z}),\\quad \\det J_zF(z^*,\\theta)\\ne0`,
+    derivation:
+      "The current model is structured enough to preserve a symbolic equilibrium object, but not enough to claim a closed-form solution. PaperForge therefore records the implicit system F(z,\\theta)=0. This keeps the derivation inspectable while making the next narrowing step explicit: concretize mechanism functions, select the active constraint region, compute J_zF, and only then solve or sign comparative statics through dz^*/d\\theta=-J_zF^{-1}F_\\theta.",
+    code: `# implicit-system symbolic scaffold
+import sympy as sp
+
+# Build F(z, theta) from:
+# - buyer and seller indifference equations
+# - platform first-order conditions
+# - feasibility and active mechanism constraints
+# Then use: dz_dtheta = -J_zF.inv() * F_theta
+`,
+    warnings: [
+      "No closed-form equilibrium was asserted; this is an implicit symbolic system.",
+      "Comparative statics should use the implicit-function theorem until the mechanism is concretized.",
+      ...reasons,
+    ],
+  };
+}
+
 function normalizeExpression(expression: string) {
   return expression
     .replace(/\\Pi/g, "Pi")
@@ -187,7 +362,7 @@ function createCanonicalHotellingEquilibriumResult(): EquilibriumResult {
     closedForm:
       "在对称内部均衡中，$\\tau_A^*=\\tau_B^*=\\frac{t_S-2\\alpha_B}{q}$，$s_A^*=s_B^*=\\frac{t_S+\\alpha_S-2t_B-2\\alpha_B}{2}$，且 $n_A^{B*}=n_B^{B*}=n_A^{S*}=n_B^{S*}=\\frac{1}{2}$。",
     derivation:
-      "由买家无差异条件和卖家无差异条件可得 $n_A^B=\\frac{1}{2}+\\frac{t_S\\Delta s-\\alpha_B q\\Delta\\tau}{2D}$，$n_A^S=\\frac{1}{2}+\\frac{\\alpha_S\\Delta s-qt_B\\Delta\\tau}{2D}$，其中 $\\Delta s=s_A-s_B$，$\\Delta\\tau=\\tau_A-\\tau_B$，$D=t_Bt_S-\\alpha_B\\alpha_S$。代入 $\\Pi_A=\\tau_A q n_A^Sn_A^B-s_A n_A^B$ 后，在对称候选 $\\tau_A=\\tau_B=\\tau$、$s_A=s_B=s$ 处，一阶条件化为 $D-q\\tau(t_B+\\alpha_B)+2\\alpha_Bs=0$ 和 $q\\tau(t_S+\\alpha_S)-2D-2t_Ss=0$。联立解得 $\\tau^*=(t_S-2\\alpha_B)/q$，$s^*=(t_S+\\alpha_S-2t_B-2\\alpha_B)/2$。该结果只声明 canonical 双边 Hotelling 佣金-补贴结构的对称内部闭式解；若研究方向加入非对称平台、内生质量、机制函数或多期状态变量，求解器会返回 symbolic_failure，而不是复用这个闭式解。",
+      "由买家无差异条件和卖家无差异条件可得 $n_A^B=\\frac{1}{2}+\\frac{t_S\\Delta s-\\alpha_B q\\Delta\\tau}{2D}$，$n_A^S=\\frac{1}{2}+\\frac{\\alpha_S\\Delta s-qt_B\\Delta\\tau}{2D}$，其中 $\\Delta s=s_A-s_B$，$\\Delta\\tau=\\tau_A-\\tau_B$，$D=t_Bt_S-\\alpha_B\\alpha_S$。代入 $\\Pi_A=\\tau_A q n_A^Sn_A^B-s_A n_A^B$ 后，在对称候选 $\\tau_A=\\tau_B=\\tau$、$s_A=s_B=s$ 处，一阶条件化为 $D-q\\tau(t_B+\\alpha_B)+2\\alpha_Bs=0$ 和 $q\\tau(t_S+\\alpha_S)-2D-2t_Ss=0$。联立解得 $\\tau^*=(t_S-2\\alpha_B)/q$，$s^*=(t_S+\\alpha_S-2t_B-2\\alpha_B)/2$。该结果只声明 canonical 双边 Hotelling 佣金-补贴结构的对称内部闭式解；若研究方向加入非对称平台、内生质量、机制函数或多期状态变量，求解器会返回反应函数、隐式系统或 symbolic_failure，而不是复用这个闭式解。",
     code: `# deterministic local symbolic solver for the canonical Hotelling core
 import sympy as sp
 

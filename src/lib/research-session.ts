@@ -19,6 +19,10 @@ import {
   normalizeSymbolRegistry,
 } from "./symbol-governance.ts";
 import { solveSymbolicHotellingEquilibrium } from "./symbolic-equilibrium-solver.ts";
+import {
+  isAnalysisReadyEquilibriumStatus,
+  isClosedFormEquilibriumStatus,
+} from "./equilibrium-status.ts";
 
 const DEFAULT_ID = "secondhand-commission-subsidy-hotelling";
 const SELLER_MULTIHOMING_ID = "seller-multihoming-pricing";
@@ -238,9 +242,9 @@ export function generatePropertyAnalysis(project: ResearchProject): ResearchProj
 
   if (
     !project.equilibriumResult ||
-    project.equilibriumResult.status !== "solved"
+    !isAnalysisReadyEquilibriumStatus(project.equilibriumResult.status)
   ) {
-    throw new Error("A solved symbolic equilibrium asset is required before analysis.");
+    throw new Error("A symbolic equilibrium asset is required before analysis.");
   }
 
   const analyses = createPropertyAnalysesForDirection(
@@ -258,8 +262,7 @@ export function generatePropertyAnalysis(project: ResearchProject): ResearchProj
     {
       id: `msg-analysis-ready-${Date.now()}`,
       role: "assistant",
-      content:
-        "我基于对称内部闭式解整理了一组性质分析：直接对佣金、补贴和内部解条件做符号求导与阈值整理。这里仍然只使用符号求导、相减和符号条件，不用数值代入替代理论分析。",
+      content: buildPropertyAnalysisMessage(project.equilibriumResult),
       createdAt: 0,
     },
   ];
@@ -309,7 +312,25 @@ export function hydrateEquilibriumDerivationMessages(
 export function buildEquilibriumDerivationMessage(
   equilibriumResult: EquilibriumResult
 ): string {
-  if (equilibriumResult.status !== "solved") {
+  if (equilibriumResult.status === "reaction_function") {
+    return [
+      "我没有把当前模型硬套成默认 Hotelling 闭式解，而是先保留为反应函数系统。",
+      `当前可用的均衡对象是：${equilibriumResult.closedForm}`,
+      "这表示平台 A 和平台 B 的最优反应需要由各自的一阶条件共同定义。下一步可以基于这些 FOC 做隐式比较静态，或者继续把机制项具体化后再尝试闭式求解。",
+      equilibriumResult.derivation,
+    ].join("\n\n");
+  }
+
+  if (equilibriumResult.status === "implicit_system") {
+    return [
+      "当前模型还不适合声明闭式均衡，所以我把它保留为隐式符号系统，而不是给出一个看似完整但不可靠的解。",
+      `隐式系统为：${equilibriumResult.closedForm}`,
+      "后续性质分析会使用隐函数定理的形式，例如 $dz^*/d\\theta=-J_zF^{-1}F_\\theta$，并且会明确写出需要维持的可行域、活动约束和雅可比非奇异条件。",
+      equilibriumResult.derivation,
+    ].join("\n\n");
+  }
+
+  if (!isClosedFormEquilibriumStatus(equilibriumResult.status)) {
     const reasons =
       equilibriumResult.conditions.length > 0
         ? equilibriumResult.conditions.join("；")
@@ -349,14 +370,91 @@ function formatInlineMath(value: string) {
   return trimmed.includes("$") ? trimmed : `$${trimmed}$`;
 }
 
+function buildPropertyAnalysisMessage(equilibriumResult: EquilibriumResult) {
+  if (equilibriumResult.status === "reaction_function") {
+    return [
+      "我基于反应函数系统整理了一组性质分析：先把平台最优反应、一阶条件和局部最优条件作为可分析对象，而不是假装已经得到闭式解。",
+      "这一轮会优先使用隐式求导、反应函数斜率和固定点稳定条件来写比较静态；如果后续把机制项具体化，还可以再回到均衡页尝试闭式求解。",
+      "这里仍然只使用符号推导和符号条件，不用数值代入替代理论分析。",
+    ].join("\n\n");
+  }
+
+  if (equilibriumResult.status === "implicit_system") {
+    return [
+      "我基于隐式符号系统整理了一组性质分析：把 $F(z,\\theta)=0$、可行域和雅可比非奇异条件作为核心对象。",
+      "这一轮性质分析会使用隐函数定理形式，例如 $dz^*/d\\theta=-J_zF^{-1}F_\\theta$，并明确哪些符号结论依赖活动约束和正则性条件。",
+      "这里仍然只使用符号推导和符号条件，不用数值代入替代理论分析。",
+    ].join("\n\n");
+  }
+
+  return "我基于对称内部闭式解整理了一组性质分析：直接对佣金、补贴和内部解条件做符号求导与阈值整理。这里仍然只使用符号求导、相减和符号条件，不用数值代入替代理论分析。";
+}
+
+function createEquilibriumPendingDecision(status: EquilibriumResult["status"]) {
+  if (!isAnalysisReadyEquilibriumStatus(status)) {
+    return {
+      kind: "solve_equilibrium" as const,
+      prompt:
+        "当前模型还没有可用于性质分析的符号均衡资产。请先收窄模型结构或具体化机制函数，然后重新开始符号求解。",
+    };
+  }
+
+  if (isClosedFormEquilibriumStatus(status)) {
+    return {
+      kind: "analyze_properties" as const,
+      prompt:
+        "符号均衡资产已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。",
+    };
+  }
+
+  return {
+    kind: "analyze_properties" as const,
+    prompt:
+      "符号均衡系统已经生成。下一步可以基于反应函数或隐式系统做符号性质分析，并明确需要维持的可行域、活动约束和正则性条件。",
+  };
+}
+
+function createEquilibriumNextActions(status: EquilibriumResult["status"]) {
+  if (isClosedFormEquilibriumStatus(status)) {
+    return [
+      "检查符号均衡推导",
+      "复制并运行 SymPy 求解代码",
+      "基于解析对象生成性质分析",
+      "生成性质分析",
+    ];
+  }
+
+  if (status === "reaction_function") {
+    return [
+      "检查反应函数和一阶条件",
+      "确认策略变量、内部解条件和局部最优条件",
+      "基于反应函数生成性质分析",
+      "必要时具体化机制项后再尝试闭式求解",
+    ];
+  }
+
+  if (status === "implicit_system") {
+    return [
+      "检查隐式系统 F(z,theta)=0",
+      "确认可行域、活动约束和雅可比非奇异条件",
+      "基于隐函数定理生成性质分析",
+      "必要时具体化机制项后再尝试闭式求解",
+    ];
+  }
+
+  return [
+    "检查符号失败原因",
+    "把机制函数具体化或收窄为 canonical Hotelling 结构",
+    "重新开始符号求解",
+  ];
+}
+
 function applySymbolicEquilibriumResult(
   project: ResearchProject,
   session: ResearchSession,
   messages: ResearchSessionMessage[],
   equilibriumResult: EquilibriumResult
 ): ResearchProject {
-  const hasSolvedEquilibrium = equilibriumResult.status === "solved";
-
   return {
     ...project,
     equilibriumResult,
@@ -367,29 +465,8 @@ function applySymbolicEquilibriumResult(
       assetSummary: {
         ...session.assetSummary,
         equilibriumStatus: equilibriumResult.status,
-        pendingDecision: hasSolvedEquilibrium
-          ? {
-              kind: "analyze_properties",
-              prompt:
-                "符号均衡资产已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。",
-            }
-          : {
-              kind: "solve_equilibrium",
-              prompt:
-                "当前模型还没有闭式均衡解。请先收窄模型结构或具体化机制函数，然后重新开始符号求解。",
-            },
-        nextActions: hasSolvedEquilibrium
-          ? [
-              "检查符号均衡推导",
-              "复制并运行 SymPy 求解代码",
-              "基于解析对象生成性质分析",
-              "生成性质分析",
-            ]
-          : [
-              "检查符号失败原因",
-              "把机制函数具体化或收窄为 canonical Hotelling 结构",
-              "重新开始符号求解",
-            ],
+        pendingDecision: createEquilibriumPendingDecision(equilibriumResult.status),
+        nextActions: createEquilibriumNextActions(equilibriumResult.status),
       },
     },
   };
@@ -813,6 +890,14 @@ function createPropertyAnalysesForDirection(
   direction: ResearchDirection | undefined,
   equilibrium: EquilibriumResult
 ): PropertyAnalysis[] {
+  if (!isClosedFormEquilibriumStatus(equilibrium.status)) {
+    if (isSellerMultihomingDirection(direction)) {
+      return createSellerMultihomingPropertyAnalyses(equilibrium);
+    }
+
+    return createGenericDirectionSpecificPropertyAnalyses(direction, equilibrium);
+  }
+
   if (!direction || direction.id === DEFAULT_ID) {
     return createDefaultPropertyAnalyses(equilibrium);
   }

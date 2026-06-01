@@ -83,6 +83,8 @@ const STEP_COPY: Record<
 const EQUILIBRIUM_STATUS_LABELS = {
   idle: "待求解",
   solved: "已求解",
+  reaction_function: "反应函数",
+  implicit_system: "隐式系统",
   needs_revision: "需修正",
   symbolic_failure: "符号失败",
 } as const;

@@ -8,6 +8,10 @@ import type {
   SymbolDefinition,
 } from "../types";
 import {
+  isAnalysisReadyEquilibriumStatus,
+  isClosedFormEquilibriumStatus,
+} from "../equilibrium-status.ts";
+import {
   adoptResearchDirection,
   createExplorationProject,
   createResearchSymbolRegistryForDirection,
@@ -279,7 +283,9 @@ export function attachEquilibriumResult(
       createdAt: 0,
     },
   ];
-  const hasSolvedEquilibrium = equilibriumResult.status === "solved";
+  const hasAnalysisReadyEquilibrium = isAnalysisReadyEquilibriumStatus(
+    equilibriumResult.status
+  );
 
   return {
     ...project,
@@ -297,31 +303,54 @@ export function attachEquilibriumResult(
           nextActions: [],
         }),
         equilibriumStatus: equilibriumResult.status,
-        pendingDecision: hasSolvedEquilibrium
+        pendingDecision: hasAnalysisReadyEquilibrium
           ? {
               kind: "analyze_properties",
-              prompt:
-                "符号均衡结果已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。",
+              prompt: isClosedFormEquilibriumStatus(equilibriumResult.status)
+                ? "符号均衡结果已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。"
+                : "符号均衡系统已经生成。下一步可以基于反应函数或隐式系统做符号性质分析，并明确可行域、活动约束和正则性条件。",
             }
           : {
               kind: "solve_equilibrium",
               prompt:
-                "当前只得到符号推导草稿，还没有闭式均衡解。请先收窄模型或重新生成符号均衡。",
+                "当前还没有可用于性质分析的符号均衡资产。请先收窄模型或重新生成符号均衡。",
             },
-        nextActions: hasSolvedEquilibrium
-          ? [
-              "检查符号均衡推导",
-              "复制并运行 SymPy 求解代码",
-              "生成性质分析",
-            ]
-          : [
-              "检查模型是否过于复杂",
-              "收窄策略变量或机制方程",
-              "重新生成闭式均衡",
-            ],
+        nextActions: createEquilibriumNextActions(equilibriumResult.status),
       },
     },
   };
+}
+
+function createEquilibriumNextActions(status: EquilibriumResult["status"]) {
+  if (isClosedFormEquilibriumStatus(status)) {
+    return [
+      "检查符号均衡推导",
+      "复制并运行 SymPy 求解代码",
+      "生成性质分析",
+    ];
+  }
+
+  if (status === "reaction_function") {
+    return [
+      "检查反应函数和一阶条件",
+      "确认策略变量、内部解条件和局部最优条件",
+      "生成性质分析",
+    ];
+  }
+
+  if (status === "implicit_system") {
+    return [
+      "检查隐式系统 F(z,theta)=0",
+      "确认可行域、活动约束和雅可比非奇异条件",
+      "生成性质分析",
+    ];
+  }
+
+  return [
+    "检查模型是否过于复杂",
+    "收窄策略变量或机制方程",
+    "重新生成符号均衡",
+  ];
 }
 
 export function attachPropertyAnalyses(

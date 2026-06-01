@@ -12,6 +12,7 @@ import { DirectionCard } from "./direction-card";
 import { MathArtifact } from "./math-artifact";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
+import { isAnalysisReadyEquilibriumStatus } from "@/lib/equilibrium-status";
 import { getResearchFeedItems } from "@/lib/research-feed";
 import {
   createResearchActionClickHandler,
@@ -187,11 +188,11 @@ function EquilibriumStatusPanel({
   isAnalyzing?: boolean;
 }) {
   const equilibrium = project.equilibriumResult;
-  const canAnalyze =
-    Boolean(equilibrium) &&
-    equilibrium?.status !== "idle" &&
-    equilibrium?.status !== "needs_revision";
+  const canAnalyze = isAnalysisReadyEquilibriumStatus(equilibrium?.status);
   const isSymbolicFailure = equilibrium?.status === "symbolic_failure";
+  const isSystemResult =
+    equilibrium?.status === "reaction_function" ||
+    equilibrium?.status === "implicit_system";
   const statusLabel = formatEquilibriumResultStatus(equilibrium?.status);
 
   return (
@@ -229,8 +230,10 @@ function EquilibriumStatusPanel({
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           {isSymbolicFailure
             ? "当前不是完整闭式均衡，只是保留了符号方程、一阶条件和可继续求解的结构。不要把它当作论文结论；更好的下一步是收窄策略变量、明确需求份额，再重新求解。"
-            : canAnalyze
-              ? "当前已经生成一版可检查的符号均衡资产。请重点检查闭式表达、存在条件和代码是否与你的论文设定一致。"
+            : isSystemResult
+              ? "当前已经生成一版可检查的符号均衡系统。请重点检查反应函数或隐式方程、可行域、正则性条件和代码是否与你的论文设定一致。"
+              : canAnalyze
+                ? "当前已经生成一版可检查的符号均衡资产。请重点检查闭式表达、存在条件和代码是否与你的论文设定一致。"
             : "当前已经有符号推导草稿，但还没有可用于性质分析的解析均衡解。下一步应先检查需求份额和一阶条件，再继续整理闭式均衡。"}
         </p>
 
@@ -261,7 +264,11 @@ function EquilibriumStatusPanel({
         {equilibrium?.closedForm ? (
           <div className="mt-4">
             <p className="mb-2 text-xs font-semibold text-foreground">
-              {isSymbolicFailure ? "未得到闭式解" : "闭式均衡摘要"}
+              {isSymbolicFailure
+                ? "未得到闭式解"
+                : isSystemResult
+                  ? "均衡系统摘要"
+                  : "闭式均衡摘要"}
             </p>
             {isSymbolicFailure ? (
               <MarkdownRenderer
@@ -291,11 +298,13 @@ function EquilibriumStatusPanel({
           <div>
             <p className="font-serif text-base font-semibold">性质分析</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {isSymbolicFailure
-                ? "仅可做隐函数草稿"
-                : canAnalyze
-                  ? "均衡资产已就绪"
-                  : "依赖符号均衡结果"}
+          {isSymbolicFailure
+            ? "等待可分析均衡"
+            : isSystemResult
+              ? "均衡系统已就绪"
+            : canAnalyze
+              ? "均衡资产已就绪"
+              : "依赖符号均衡结果"}
             </p>
           </div>
           {canAnalyze ? (
@@ -309,7 +318,7 @@ function EquilibriumStatusPanel({
               ) : (
                 <FileText className="size-4" />
               )}
-              {isSymbolicFailure ? "生成隐函数性质草稿" : "生成性质分析"}
+              {isSystemResult ? "生成隐式性质分析" : "生成性质分析"}
             </Button>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground">
@@ -320,12 +329,14 @@ function EquilibriumStatusPanel({
         </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           {isSymbolicFailure
-            ? "这一步只能基于隐函数和反应系统生成性质草稿，不能声称已经得到闭式比较静态。若要论文可用，应先回到模型设定收窄变量。"
+            ? "当前还没有可用于性质分析的符号均衡资产。若要论文可用，应先回到模型设定收窄变量或具体化机制方程。"
+            : isSystemResult
+              ? "这一步会基于反应函数或隐式系统生成性质分析，并明确可行域、活动约束和正则性条件；不会声称已经得到闭式比较静态。"
             : "这一步不会用数值代入替代理论分析。只有当均衡解足够清楚后，才会对佣金、补贴、网络效应、差异化成本等参数做求导、相减和阈值条件分析。"}
         </p>
         <div className="mt-3 grid gap-2 text-xs leading-5 md:grid-cols-3">
           <div className="rounded-md border border-dashed bg-background/70 px-3 py-3">
-            比较静态：{isSymbolicFailure ? "仅草稿" : canAnalyze ? "可生成" : "等待均衡结果"}
+            比较静态：{isSymbolicFailure ? "等待均衡" : canAnalyze ? "可生成" : "等待均衡结果"}
           </div>
           <div className="rounded-md border border-dashed bg-background/70 px-3 py-3">
             策略差异：{isSymbolicFailure ? "需收窄" : canAnalyze ? "可生成" : "等待平台策略"}
@@ -501,8 +512,12 @@ function formatEquilibriumResultStatus(status?: EquilibriumResult["status"]) {
   switch (status) {
     case "solved":
       return "已生成符号均衡";
+    case "reaction_function":
+      return "已生成反应函数系统";
+    case "implicit_system":
+      return "已生成隐式符号系统";
     case "symbolic_failure":
-      return "仅有符号推导草稿";
+      return "符号求解失败";
     case "needs_revision":
       return "需要修订";
     case "idle":

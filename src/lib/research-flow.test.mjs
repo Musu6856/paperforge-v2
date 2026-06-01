@@ -121,6 +121,27 @@ test("research flow does not treat symbolic failure as solved equilibrium", () =
   assert.equal(state.analysisStatusLabel, "等待闭式均衡完成");
 });
 
+test("research flow treats implicit systems as symbolic assets for analysis", () => {
+  const project = createExplorationProject({
+    id: "11111111-1111-4111-8111-111111111111",
+    rawIdea: "研究商家多归属的外卖平台竞争",
+    now: 1710000000000,
+  });
+  const solved = generateSymbolicEquilibrium(
+    confirmResearchModel(
+      adoptResearchDirection(project, "seller-multihoming-pricing")
+    )
+  );
+
+  const state = getResearchFlowState(solved);
+
+  assert.equal(solved.equilibriumResult?.status, "implicit_system");
+  assert.equal(state.canAnalyzeProperties, true);
+  assert.equal(state.canSolveEquilibrium, false);
+  assert.equal(state.equilibriumStatusLabel, "已生成隐式符号系统");
+  assert.equal(state.analysisStatusLabel, "等待生成性质分析");
+});
+
 test("research flow exposes re-solve action for legacy symbolic failures", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",

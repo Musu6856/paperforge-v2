@@ -65,6 +65,26 @@ test("symbolic equilibrium fallback remains persistable", () => {
   assert.equal(getPersistableResearchProject(result), solved);
 });
 
+test("implicit-system equilibrium fallback remains persistable", () => {
+  const project = createExplorationProject({
+    id: "11111111-1111-4111-8111-111111111111",
+    rawIdea: "研究商家多归属的外卖平台竞争",
+    now: 1710000000000,
+  });
+  const adopted = adoptResearchDirection(project, "seller-multihoming-pricing");
+  const confirmed = confirmResearchModel(adopted);
+  const implicit = generateSymbolicEquilibrium(confirmed);
+
+  const result = {
+    project: implicit,
+    usedFallback: true,
+    assistantMessage: "已生成本地隐式符号系统",
+  };
+
+  assert.equal(implicit.equilibriumResult?.status, "implicit_system");
+  assert.equal(getPersistableResearchProject(result), implicit);
+});
+
 test("solved equilibrium fallback remains persistable when stale property analyses exist", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
@@ -156,5 +176,40 @@ test("attaching symbolic failure does not open property analysis action", () => 
   assert.equal(
     failed.researchSession?.assetSummary.pendingDecision?.kind,
     "solve_equilibrium"
+  );
+});
+
+test("attaching implicit systems opens property analysis action", () => {
+  const project = createExplorationProject({
+    id: "11111111-1111-4111-8111-111111111111",
+    rawIdea: "研究商家多归属的外卖平台竞争",
+    now: 1710000000000,
+  });
+  const implicit = attachEquilibriumResult(
+    confirmResearchModel(
+      adoptResearchDirection(project, "seller-multihoming-pricing")
+    ),
+    {
+      status: "implicit_system",
+      concept: "隐式符号均衡系统",
+      solvingSteps: ["列出一阶条件。"],
+      focs: ["F(z,\\theta)=0"],
+      conditions: ["\\det J_zF\\ne0"],
+      closedForm: "F(z,\\theta)=0",
+      derivation: "保留隐式系统用于比较静态。",
+      code: "print('implicit system')",
+      warnings: [],
+    },
+    "已得到隐式系统。"
+  );
+
+  assert.equal(
+    implicit.researchSession?.assetSummary.pendingDecision?.kind,
+    "analyze_properties"
+  );
+  assert.ok(
+    implicit.researchSession?.assetSummary.nextActions.some((action) =>
+      action.includes("隐式系统")
+    )
   );
 });

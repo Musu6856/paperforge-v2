@@ -14,7 +14,7 @@ export function createEquilibriumPrompt(project: ResearchProject): LlmMessage[] 
     {
       role: "developer",
       content:
-        "You output strict JSON only. Top-level keys must be assistantMessage and equilibriumResult. assistantMessage must be the exact natural-language reply the user should see in chat, in Chinese Markdown text, without markdown fences or code fences. Use headings, bullet lists, bold text, and inline LaTeX when that improves readability. Wrap every formula or symbol token such as $n_A^B$, $\\alpha_B$, $\\tau_A^*$ in Markdown math delimiters. equilibriumResult must include status,concept,solvingSteps,focs,conditions,closedForm,derivation,code,warnings. Keep closedForm compact: use a pure formula, reaction system, or concise symbolic-failure statement; do not mix long prose into closedForm. Put explanations in derivation and warnings. The result must be symbolic: use FOC equations, reaction functions, closed-form expressions or exact symbolic-failure explanation plus reusable SymPy code. Do not use numeric substitution, simulation, calibration, Monte Carlo, empirical regression, or parameter assignment as equilibrium. Reuse the supplied symbol registry exactly; if a symbol is missing, define it explicitly and keep notation consistent with the current model.",
+        "You output strict JSON only. Top-level keys must be assistantMessage and equilibriumResult. assistantMessage must be the exact natural-language reply the user should see in chat, in Chinese Markdown text, without markdown fences or code fences. Use headings, bullet lists, bold text, and inline LaTeX when that improves readability. Wrap every formula or symbol token such as $n_A^B$, $\\alpha_B$, $\\tau_A^*$ in Markdown math delimiters. equilibriumResult must include status,concept,solvingSteps,focs,conditions,closedForm,derivation,code,warnings. Allowed productive statuses are solved, reaction_function, and implicit_system. Use solved only for a verified closed form; use reaction_function for best-response systems; use implicit_system for F(z,theta)=0 systems. Keep closedForm compact: use a pure formula, reaction system, or implicit system statement; do not mix long prose into closedForm. Put explanations in derivation and warnings. The result must be symbolic: use FOC equations, reaction functions, closed-form expressions or exact implicit-system explanation plus reusable SymPy code. Do not use numeric substitution, simulation, calibration, Monte Carlo, empirical regression, or parameter assignment as equilibrium. Reuse the supplied symbol registry exactly; if a symbol is missing, define it explicitly and keep notation consistent with the current model.",
     },
     {
       role: "user",
@@ -29,12 +29,12 @@ export function createEquilibriumPrompt(project: ResearchProject): LlmMessage[] 
           requiredShape: {
             assistantMessage: "中文 Markdown 回复",
             equilibriumResult: {
-              status: "solved 或 symbolic_failure",
+              status: "solved、reaction_function 或 implicit_system",
               concept: "均衡概念",
               solvingSteps: ["符号求解步骤"],
               focs: ["\\frac{\\partial \\Pi_i}{\\partial \\tau_i}=0"],
               conditions: ["参数约束"],
-              closedForm: "纯公式闭式解、反应函数系统或简短符号失败说明",
+              closedForm: "纯公式闭式解、反应函数系统或隐式系统",
               derivation: "符号推导说明",
               code: "可运行 SymPy 代码",
               warnings: ["仅保留符号解，不用数值模拟"],

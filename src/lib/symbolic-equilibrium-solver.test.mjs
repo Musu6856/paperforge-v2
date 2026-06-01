@@ -88,23 +88,27 @@ test("symbolic solver returns closed form for canonical Hotelling commission sub
   assert.match(result.code, /sp\.solve/);
 });
 
-test("symbolic solver returns failure for unresolved mechanism functions", () => {
+test("symbolic solver returns implicit system for unresolved mechanism functions", () => {
   const result = solveSymbolicHotellingEquilibrium({
     ...canonicalModel,
-    utilityFunctions: [
-      {
-        ...canonicalModel.utilityFunctions[0],
-        expression: "U_A^B = v_B + \\psi_A(\\mu_d) - t_B x",
-      },
-    ],
+    utilityFunctions: canonicalModel.utilityFunctions.map((entry, index) =>
+      index === 0
+        ? {
+            ...entry,
+            expression: "U_A^B = v_B + \\psi_A(\\mu_d) - t_B x",
+          }
+        : entry
+    ),
   });
 
-  assert.equal(result.status, "symbolic_failure");
-  assert.equal(result.closedForm, "");
-  assert.match(result.warnings.join("\n"), /unresolved mechanism function/i);
+  assert.equal(result.status, "implicit_system");
+  assert.match(result.closedForm, /F\(z,\\theta\)=0/);
+  assert.match(result.focs.join("\n"), /\\Pi_A.*\\tau_A/);
+  assert.match(result.conditions.join("\n"), /unresolved mechanism function/i);
+  assert.match(result.derivation, /narrow|concret/i);
 });
 
-test("symbolic solver returns failure for noncanonical profit equations", () => {
+test("symbolic solver returns reaction-function result for noncanonical profit equations", () => {
   const result = solveSymbolicHotellingEquilibrium({
     ...canonicalModel,
     profitFunctions: [
@@ -116,7 +120,20 @@ test("symbolic solver returns failure for noncanonical profit equations", () => 
     ],
   });
 
+  assert.equal(result.status, "reaction_function");
+  assert.match(result.closedForm, /R_A/);
+  assert.match(result.closedForm, /R_B/);
+  assert.match(result.focs.join("\n"), /\\Pi_A.*\\tau_A/);
+  assert.match(result.conditions.join("\n"), /unsupported profit function/i);
+});
+
+test("symbolic solver still fails for models without two supported platforms", () => {
+  const result = solveSymbolicHotellingEquilibrium({
+    ...canonicalModel,
+    platforms: ["A", "B", "C"],
+  });
+
   assert.equal(result.status, "symbolic_failure");
   assert.equal(result.closedForm, "");
-  assert.match(result.warnings.join("\n"), /unsupported profit function/i);
+  assert.match(result.warnings.join("\n"), /unsupported platform structure/i);
 });
