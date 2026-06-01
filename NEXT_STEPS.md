@@ -13,6 +13,9 @@ This repository is the new Agent-focused PaperForge v2 workspace.
 - `77105b3 chore: import PaperForge baseline`
 - `da968ca feat: route research generation through Mastra workflow`
 - `32fbb03 feat: add local development project fallback`
+- `885f368 feat: add symbolic solver and agent trace UI`
+- `897d0d6 fix: persist local projects and normalize raw latex`
+- `94b01ea fix: submit chat input on enter`
 
 ## Product Direction
 
@@ -47,6 +50,10 @@ Current scope:
 - Started the symbolic equilibrium milestone with a narrow deterministic Hotelling solver under `src/lib/symbolic-equilibrium-solver.ts`.
 - The local solver now returns the closed-form commission/subsidy equilibrium only for the canonical two-platform, two-sided Hotelling structure; unresolved mechanism functions or noncanonical profit equations return `symbolic_failure` instead of reusing the default closed-form result.
 - `generateSymbolicEquilibrium` is now wired through the deterministic solver, and property analysis is blocked unless the equilibrium result is actually `solved`.
+- Development no-database project storage now persists to `.paperforge-dev/projects.json`, so local projects survive browser refreshes and dev server restarts.
+- The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
+- The center chat composer now submits on plain Enter, keeps Shift+Enter for multiline drafts, and avoids submitting while IME composition is active.
+- The user manually verified the latest local flow after these fixes and reported no obvious issues.
 
 ## Verification Commands
 
@@ -75,7 +82,7 @@ If port 3000 is occupied:
 npm run dev -- --port 3001
 ```
 
-In development, the app can run without `DATABASE_URL`. Project data then lives in memory and resets when the dev server restarts.
+In development, the app can run without `DATABASE_URL`. Project data is stored locally at `.paperforge-dev/projects.json` and survives browser refreshes and dev server restarts. Delete that file or directory to reset the local no-db workspace.
 
 ## Agent Tab Browser Smoke Checklist
 
@@ -85,12 +92,12 @@ Preconditions:
 
 - Run from this repo, not the original baseline repo.
 - Start the app with `npm run dev`; use `npm run dev -- --port 3001` if port 3000 is occupied.
-- Leave `DATABASE_URL` unset for the local in-memory development project store, or use a disposable local database.
+- Leave `DATABASE_URL` unset for the local file-backed development project store, or use a disposable local database.
 
 Steps:
 
 1. Open `/research?new=1`.
-2. Submit a concrete Chinese research idea in the center chat composer.
+2. Submit a concrete Chinese research idea in the center chat composer. Plain Enter should submit; Shift+Enter should add a newline.
 3. Wait for navigation to `/research/<project-id>` and for the right asset pane to populate directions.
 4. Click the right-side `Agent` asset tab.
    - If Clerk's keyless prompt overlaps the lower-right app area, collapse it first so it does not intercept tab clicks.
@@ -102,6 +109,7 @@ Steps:
 Pass criteria:
 
 - A project is created and saved in the local development project store.
+- After refreshing the browser, local project history remains available when running without `DATABASE_URL`.
 - The `Agent` tab is reachable without collapsing or resizing the right pane.
 - The tab exposes the Mastra workflow identity, action, status, step list, and failure reason area when applicable.
 - No unhandled console error appears during the create-project flow.
