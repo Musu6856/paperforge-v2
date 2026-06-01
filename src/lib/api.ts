@@ -1,5 +1,6 @@
 import type { GameTheoryModel } from "./types";
 import type {
+  AgentRunTrace,
   ModelSourceMetadata,
   ModelSourceSettings,
   ResearchProject,
@@ -140,6 +141,7 @@ export interface GenerateResearchProjectResult {
   project: ResearchProject;
   usedFallback?: boolean;
   assistantMessage?: string;
+  agentRun?: AgentRunTrace;
   assetPatch?: {
     kind: "update_model" | "update_equilibrium" | "update_properties";
     summary: string;

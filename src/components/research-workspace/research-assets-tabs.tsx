@@ -17,7 +17,8 @@ const tabs: Array<{
     | "tabEquilibrium"
     | "tabProperties"
     | "tabPaper"
-    | "tabQuality";
+    | "tabQuality"
+    | "tabAgent";
 }> = [
   { id: "directions", labelKey: "tabDirections" },
   { id: "model", labelKey: "tabModel" },
@@ -25,6 +26,7 @@ const tabs: Array<{
   { id: "properties", labelKey: "tabProperties" },
   { id: "paper", labelKey: "tabPaper" },
   { id: "quality", labelKey: "tabQuality" },
+  { id: "agent", labelKey: "tabAgent" },
 ];
 
 export function ResearchAssetsTabs({

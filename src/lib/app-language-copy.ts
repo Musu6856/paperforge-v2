@@ -116,6 +116,7 @@ export const appCopy = {
       tabProperties: "性质",
       tabPaper: "论文输出",
       tabQuality: "质检",
+      tabAgent: "Agent",
       candidateDirections: "候选方向",
       candidateDirectionsDescription:
         "所有方向都可以直接采用，推荐标记只表示默认建议。",
@@ -125,6 +126,13 @@ export const appCopy = {
       paperPreview: "论文预览",
       emptyPaper:
         "论文输出暂未生成。先把方向、模型、均衡和性质分析稳定下来，再整理成命题与正文。",
+      agentTraceTitle: "Agent 运行",
+      agentTraceDescription:
+        "这里展示最新一次 Mastra workflow 的执行记录，方便确认这不是普通接口直出。",
+      agentStepsTitle: "执行步骤",
+      agentEmptyTitle: "暂无 Agent 运行",
+      agentEmptyDescription:
+        "开始一次研究生成后，这里会显示 Mastra workflow 的计划、执行和总结步骤。",
     },
   },
   en: {
@@ -251,6 +259,7 @@ export const appCopy = {
       tabProperties: "Properties",
       tabPaper: "Paper",
       tabQuality: "Quality",
+      tabAgent: "Agent",
       candidateDirections: "Candidate Directions",
       candidateDirectionsDescription:
         "All directions can be adopted. The recommendation only marks the default suggestion.",
@@ -260,6 +269,13 @@ export const appCopy = {
       paperPreview: "Paper Preview",
       emptyPaper:
         "No paper output yet. Stabilize the direction, model, equilibrium, and property analysis before turning them into propositions and prose.",
+      agentTraceTitle: "Agent Run",
+      agentTraceDescription:
+        "Shows the latest Mastra workflow trace so the Agent layer is visible in the product.",
+      agentStepsTitle: "Execution Steps",
+      agentEmptyTitle: "No Agent run yet",
+      agentEmptyDescription:
+        "Start a research generation to show the Mastra workflow plan, execution, and summary steps.",
     },
   },
 } satisfies Record<AppLanguage, Record<string, Record<string, string>>>;

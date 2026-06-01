@@ -51,7 +51,8 @@ export type ResearchAssetsTab =
   | "equilibrium"
   | "properties"
   | "paper"
-  | "quality";
+  | "quality"
+  | "agent";
 
 export type ResearchAction = () => void | Promise<void>;
 

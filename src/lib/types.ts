@@ -280,6 +280,36 @@ export interface ResearchSessionAssetSummary {
   nextActions: string[];
 }
 
+export type AgentRunStepStatus =
+  | "success"
+  | "failed"
+  | "running"
+  | "waiting"
+  | "suspended"
+  | "paused"
+  | "skipped";
+
+export interface AgentRunStepTrace {
+  id: string;
+  label: string;
+  status: AgentRunStepStatus;
+  summary?: string;
+  startedAt?: number;
+  endedAt?: number;
+}
+
+export interface AgentRunTrace {
+  id: string;
+  framework: "mastra";
+  workflowId: string;
+  action: string;
+  status: "success" | "failed";
+  startedAt: number;
+  endedAt: number;
+  steps: AgentRunStepTrace[];
+  error?: string;
+}
+
 export interface ResearchSession {
   phase: "direction" | "model" | "equilibrium" | "analysis";
   directions: ResearchDirection[];
@@ -287,6 +317,7 @@ export interface ResearchSession {
   assetSummary: ResearchSessionAssetSummary;
   assetFreshness?: ResearchAssetFreshnessMap;
   assetPatches?: ResearchAssetPatch[];
+  agentRuns?: AgentRunTrace[];
 }
 
 export interface ResearchProject {

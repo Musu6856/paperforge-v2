@@ -1,5 +1,5 @@
-import { generateResearchProject } from "@/lib/ai-research-generation";
 import type { ResearchGenerationRequest } from "@/lib/ai-research-generation";
+import { runResearchAgentWorkflow } from "@/lib/agent-runtime/research-workflow";
 import {
   completeProviderChat,
   getProviderConfigForModelSource,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   }
   const apiKey = provider.apiKey;
   const timeoutMs = getProviderTimeoutMs(body.action);
-  const result = await generateResearchProject(body, {
+  const result = await runResearchAgentWorkflow(body, {
     complete: apiKey
       ? async (messages) => {
           const controller = new AbortController();

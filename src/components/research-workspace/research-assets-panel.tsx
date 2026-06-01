@@ -22,6 +22,7 @@ import { PendingAssetPatches } from "./pending-asset-patches";
 import { PhaseIndicator } from "./phase-indicator";
 import { ResearchAssetsTabs } from "./research-assets-tabs";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { createAgentRunViewModel } from "@/lib/agent-runtime/run-view";
 import {
   buildResearchProjectMarkdown,
   getResearchProjectMarkdownFilename,
@@ -337,8 +338,104 @@ function ResearchAssetsPanelContent({
             isPropertyAnalysisStale={flow.isPropertyAnalysisStale}
           />
         ) : null}
+
+        {activeTab === "agent" ? (
+          <AgentRunTab session={session} copy={copy} />
+        ) : null}
       </div>
     </aside>
+  );
+}
+
+function AgentRunTab({
+  session,
+  copy,
+}: {
+  session: ResearchSession;
+  copy: ReturnType<typeof getAppCopy>["assets"];
+}) {
+  const view = createAgentRunViewModel(session);
+
+  if (!view.hasRun) {
+    return (
+      <AssetSection
+        title={copy.agentTraceTitle}
+        description={copy.agentTraceDescription}
+      >
+        <EmptyLine text={copy.agentEmptyDescription} />
+      </AssetSection>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <AssetSection
+        title={copy.agentTraceTitle}
+        description={copy.agentTraceDescription}
+      >
+        <div className="rounded-md border bg-background px-3 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <StatusBadge
+              label={`${view.run.frameworkLabel} · ${view.run.statusLabel}`}
+              tone={view.run.statusTone}
+            />
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {view.run.durationLabel}
+            </span>
+          </div>
+          <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-[11px] leading-5 sm:grid-cols-2">
+            <div className="min-w-0">
+              <dt className="text-muted-foreground">Workflow</dt>
+              <dd className="mt-0.5 break-words font-medium text-foreground">
+                {view.run.workflowId}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-muted-foreground">Action</dt>
+              <dd className="mt-0.5 break-words font-medium text-foreground">
+                {view.run.actionLabel}
+              </dd>
+            </div>
+          </dl>
+          {view.run.error ? <WarningBox text={view.run.error} /> : null}
+        </div>
+      </AssetSection>
+
+      <AssetSection title={copy.agentStepsTitle}>
+        {view.run.steps.length > 0 ? (
+          <div className="space-y-2">
+            {view.run.steps.map((step) => (
+              <article
+                key={step.id}
+                className="rounded-md border bg-background px-3 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="min-w-0 text-xs font-semibold text-foreground">
+                    {step.label}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {step.durationLabel}
+                    </span>
+                    <StatusBadge
+                      label={step.statusLabel}
+                      tone={step.statusTone}
+                    />
+                  </div>
+                </div>
+                {step.summary ? (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    {step.summary}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyLine text={copy.agentEmptyDescription} />
+        )}
+      </AssetSection>
+    </div>
   );
 }
 

@@ -1,5 +1,7 @@
 # PaperForge
 
+> Agent v2 分支：当前版本在原 PaperForge 基线之上接入 Mastra，把研究生成流程包装成可追踪的 Agent workflow，并在右侧资产栏显示最新 Agent Run。
+
 PaperForge 是面向中文研究者的理论研究工作台，聚焦博弈论、平台经济、双边市场和相关管理科学选题。它不是“一键生成论文”的工具，而是把研究方向、模型设定、符号均衡、性质分析和论文草稿放进一条可编辑、可追踪、可导出的工作流里。
 
 在线演示: [paperforge-sable.vercel.app](https://paperforge-sable.vercel.app/)
@@ -14,10 +16,10 @@ PaperForge 是面向中文研究者的理论研究工作台，聚焦博弈论、
 ## 工作流
 
 1. 输入一个研究想法，创建项目
-2. 选择或补全模型来源，明确研究方向与关键假设
-3. 生成或修正模型设定
-4. 求解符号均衡
-5. 继续做性质分析与论文输出整理
+2. Mastra workflow 规划并执行研究生成，右侧 Agent 页保留运行记录
+3. 选择或补全模型来源，明确研究方向与关键假设
+4. 生成或修正模型设定
+5. 求解符号均衡
 6. 需要时导出为可写进论文的格式
 
 ## 核心功能
@@ -34,6 +36,7 @@ PaperForge 是面向中文研究者的理论研究工作台，聚焦博弈论、
 ## 技术栈
 
 - Next.js 16 App Router
+- Mastra
 - React 19
 - TypeScript
 - Tailwind CSS 4
