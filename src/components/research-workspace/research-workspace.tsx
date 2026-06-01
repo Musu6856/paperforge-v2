@@ -35,9 +35,11 @@ import { classifyResearchInput } from "@/lib/research-intent";
 import {
   confirmResearchModel,
   createInitialResearchSession,
+  hydrateEquilibriumDerivationMessages,
   normalizeResearchProjectForWorkspace,
 } from "@/lib/research-session";
 import { getAppCopy } from "@/lib/app-language-copy";
+import { createAgentRunViewModel } from "@/lib/agent-runtime/run-view";
 import { normalizeSymbolRegistry } from "@/lib/symbol-governance";
 import { getPersistableResearchProject } from "@/lib/research-generation-result";
 import { useStore } from "@/lib/store";
@@ -487,12 +489,17 @@ export function ResearchWorkspace({
     const baseMessages =
       !displayedProject || isComposingNewConversation || !session
         ? []
-        : session.messages;
+        : hydrateEquilibriumDerivationMessages(
+            session.messages,
+            displayedProject.equilibriumResult
+          );
+    const agentRunView = session ? createAgentRunViewModel(session) : null;
 
     return createResearchChatViewMessages(
       baseMessages,
       optimisticMessage,
-      pendingAssistantMessage
+      pendingAssistantMessage,
+      agentRunView?.hasRun ? agentRunView.run : null
     );
   })();
   const chatTitle =

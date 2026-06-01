@@ -1,15 +1,25 @@
+import type { AgentRunViewModel } from "./agent-runtime/run-view.ts";
 import type { ResearchSessionMessage } from "./types";
+
+export type ResearchChatAgentRunSummary = Extract<
+  AgentRunViewModel,
+  { hasRun: true }
+>["run"];
 
 export type ResearchChatViewMessage = ResearchSessionMessage & {
   isPending?: boolean;
+  agentRun?: ResearchChatAgentRunSummary;
 };
 
 export function createResearchChatViewMessages(
   messages: ResearchSessionMessage[],
   optimisticMessage: ResearchSessionMessage | null,
-  pendingAssistantMessage: ResearchChatViewMessage | null = null
+  pendingAssistantMessage: ResearchChatViewMessage | null = null,
+  latestAgentRun: ResearchChatAgentRunSummary | null = null
 ): ResearchChatViewMessage[] {
-  if (!optimisticMessage && !pendingAssistantMessage) return messages;
+  if (!optimisticMessage && !pendingAssistantMessage) {
+    return attachAgentRunToLatestAssistant(messages, latestAgentRun);
+  }
 
   const confirmedUserIndex = optimisticMessage
     ? findLastMatchingMessageIndex(messages, optimisticMessage)
@@ -21,20 +31,47 @@ export function createResearchChatViewMessages(
       .some((message) => message.role === "assistant");
 
     if (assistantAlreadyArrived || !pendingAssistantMessage) {
-      return messages;
+      return attachAgentRunToLatestAssistant(messages, latestAgentRun);
     }
 
-    return [
-      ...messages.slice(0, confirmedUserIndex + 1),
-      pendingAssistantMessage,
-      ...messages.slice(confirmedUserIndex + 1),
-    ];
+    return attachAgentRunToLatestAssistant(
+      [
+        ...messages.slice(0, confirmedUserIndex + 1),
+        pendingAssistantMessage,
+        ...messages.slice(confirmedUserIndex + 1),
+      ],
+      latestAgentRun
+    );
   }
 
   const viewMessages: ResearchChatViewMessage[] = [...messages];
   if (optimisticMessage) viewMessages.push(optimisticMessage);
   if (pendingAssistantMessage) viewMessages.push(pendingAssistantMessage);
-  return viewMessages;
+  return attachAgentRunToLatestAssistant(viewMessages, latestAgentRun);
+}
+
+function attachAgentRunToLatestAssistant(
+  messages: ResearchChatViewMessage[],
+  agentRun: ResearchChatAgentRunSummary | null
+): ResearchChatViewMessage[] {
+  if (!agentRun) return messages;
+
+  const targetIndex = findLatestAssistantMessageIndex(messages);
+  if (targetIndex < 0) return messages;
+
+  return messages.map((message, index) =>
+    index === targetIndex ? { ...message, agentRun } : message
+  );
+}
+
+function findLatestAssistantMessageIndex(messages: ResearchChatViewMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role === "assistant" && !message.isPending) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function normalizeMessageContent(content: string) {

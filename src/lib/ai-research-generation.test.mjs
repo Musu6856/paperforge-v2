@@ -1082,10 +1082,15 @@ test("equilibrium generation falls back when provider only returns a symbolic fa
   );
 
   assert.equal(result.usedFallback, true);
-  assert.equal(result.project.equilibriumResult?.status, "solved");
+  assert.equal(result.project.equilibriumResult?.status, "symbolic_failure");
+  assert.equal(result.project.equilibriumResult?.closedForm, "");
+  assert.equal(
+    result.project.researchSession?.assetSummary.pendingDecision?.kind,
+    "solve_equilibrium"
+  );
   assert.match(
-    result.project.equilibriumResult?.closedForm ?? "",
-    /\\tau_A\^\*=\\tau_B\^\*=\\frac\{t_S-2\\alpha_B\}\{q\}/
+    result.project.equilibriumResult?.warnings.join("\n") ?? "",
+    /unresolved mechanism function|unsupported/i
   );
 });
 

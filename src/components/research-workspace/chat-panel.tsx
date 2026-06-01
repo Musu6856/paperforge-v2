@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, SendHorizontal } from "lucide-react";
+import { ChevronDown, CircleDot, Loader2, SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
@@ -96,6 +96,9 @@ export function ChatPanel({
                     />
                   )}
                 </div>
+                {message.agentRun ? (
+                  <AgentRunInlineTrace run={message.agentRun} />
+                ) : null}
               </article>
             ))}
           </div>
@@ -123,5 +126,94 @@ export function ChatPanel({
         </div>
       </form>
     </section>
+  );
+}
+
+function AgentRunInlineTrace({
+  run,
+}: {
+  run: NonNullable<ResearchChatViewMessage["agentRun"]>;
+}) {
+  return (
+    <details
+      className="group mt-2 max-w-full rounded-md border bg-background text-left"
+      open={run.statusTone === "warning"}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <CircleDot className="size-3.5 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-foreground">
+              Agent
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {run.summaryLabel}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <AgentInlineStatusBadge label={run.statusLabel} tone={run.statusTone} />
+          <span className="text-[11px] text-muted-foreground">
+            {run.durationLabel}
+          </span>
+          <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
+        </div>
+      </summary>
+      <div className="border-t px-3 py-2">
+        <div className="grid gap-1.5 text-[11px] leading-5 text-muted-foreground sm:grid-cols-3">
+          {run.metadata.map((item) => (
+            <div key={item.label} className="min-w-0">
+              <span>{item.label}: </span>
+              <span className="break-words font-medium text-foreground">
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        {run.error ? (
+          <p className="mt-2 rounded-sm border border-amber-200 bg-[oklch(0.965_0.03_85)] px-2 py-1.5 text-[11px] leading-5 text-[oklch(0.38_0.07_65)]">
+            {run.error}
+          </p>
+        ) : null}
+        {run.steps.length > 0 ? (
+          <div className="mt-2 divide-y rounded-md border">
+            {run.steps.map((step) => (
+              <div
+                key={step.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[11px]"
+              >
+                <span className="truncate font-medium text-foreground">
+                  {step.label}
+                </span>
+                <span className="text-muted-foreground">
+                  {step.statusLabel} · {step.durationLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+function AgentInlineStatusBadge({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "neutral" | "success" | "warning";
+}) {
+  const className =
+    tone === "success"
+      ? "border-[oklch(0.82_0.04_155)] bg-[oklch(0.965_0.026_155)] text-[oklch(0.34_0.065_155)]"
+      : tone === "warning"
+        ? "border-[oklch(0.82_0.04_85)] bg-[oklch(0.965_0.03_85)] text-[oklch(0.38_0.07_65)]"
+        : "border-border bg-muted/30 text-muted-foreground";
+
+  return (
+    <span className={`rounded-sm border px-1.5 py-0.5 text-[11px] ${className}`}>
+      {label}
+    </span>
   );
 }

@@ -18,6 +18,7 @@ import {
   mergeSymbolRegistries,
   normalizeSymbolRegistry,
 } from "./symbol-governance.ts";
+import { solveSymbolicHotellingEquilibrium } from "./symbolic-equilibrium-solver.ts";
 
 const DEFAULT_ID = "secondhand-commission-subsidy-hotelling";
 const SELLER_MULTIHOMING_ID = "seller-multihoming-pricing";
@@ -206,6 +207,7 @@ export function generateSymbolicEquilibrium(
     throw new Error("A confirmed Hotelling model is required before solving.");
   }
 
+  const equilibriumResult = solveSymbolicHotellingEquilibrium(project.hotellingModel);
   const messages: ResearchSessionMessage[] = [
     ...session.messages,
     {
@@ -217,13 +219,17 @@ export function generateSymbolicEquilibrium(
     {
       id: `msg-equilibrium-solved-${Date.now()}`,
       role: "assistant",
-      content:
-        "我先给出一版可写入论文推导的符号均衡资产：从两侧无差异条件得到需求份额，再把需求代入平台利润函数，并在对称内部候选均衡下联立一阶条件得到佣金与补贴的闭式解。右侧会停在均衡页，方便先检查闭式解、一阶条件和存在条件；确认可用后再进入性质分析。若后续模型加入非对称平台或更多状态变量，应继续做一般符号求解，而不是改用数值模拟。",
+      content: buildEquilibriumDerivationMessage(equilibriumResult),
       createdAt: 0,
     },
   ];
 
-  return applySymbolicEquilibriumResult(project, session, messages);
+  return applySymbolicEquilibriumResult(
+    project,
+    session,
+    messages,
+    equilibriumResult
+  );
 }
 
 export function generatePropertyAnalysis(project: ResearchProject): ResearchProject {
@@ -232,10 +238,9 @@ export function generatePropertyAnalysis(project: ResearchProject): ResearchProj
 
   if (
     !project.equilibriumResult ||
-    project.equilibriumResult.status === "idle" ||
-    project.equilibriumResult.status === "needs_revision"
+    project.equilibriumResult.status !== "solved"
   ) {
-    throw new Error("A symbolic equilibrium asset is required before analysis.");
+    throw new Error("A solved symbolic equilibrium asset is required before analysis.");
   }
 
   const analyses = createPropertyAnalysesForDirection(
@@ -280,13 +285,77 @@ export function generatePropertyAnalysis(project: ResearchProject): ResearchProj
   };
 }
 
+export function hydrateEquilibriumDerivationMessages(
+  messages: ResearchSessionMessage[],
+  equilibriumResult?: EquilibriumResult
+): ResearchSessionMessage[] {
+  if (!equilibriumResult) return messages;
+
+  return messages.map((message) => {
+    if (
+      message.role === "assistant" &&
+      isLegacyEquilibriumSummaryMessage(message.content)
+    ) {
+      return {
+        ...message,
+        content: buildEquilibriumDerivationMessage(equilibriumResult),
+      };
+    }
+
+    return message;
+  });
+}
+
+export function buildEquilibriumDerivationMessage(
+  equilibriumResult: EquilibriumResult
+): string {
+  if (equilibriumResult.status !== "solved") {
+    const reasons =
+      equilibriumResult.conditions.length > 0
+        ? equilibriumResult.conditions.join("；")
+        : "当前模型没有满足本地确定性求解器的覆盖条件";
+
+    return [
+      "当前模型没有通过本地确定性符号求解器的覆盖范围检查，所以我没有套用默认 Hotelling 闭式解。",
+      `我先检查平台结构、效用函数和利润函数是否落在 canonical 双边 Hotelling 佣金-补贴模型内；这一步发现的问题是：${reasons}。`,
+      "因此这次不会硬给一个看似闭式的均衡。更稳妥的下一步是把机制函数具体化，或把模型收窄回可识别的 Hotelling 核心后再重新求解。",
+    ].join("\n\n");
+  }
+
+  const focs = equilibriumResult.focs.map(formatInlineMath);
+  const firstFoc = focs[0] ?? "第一个一阶条件";
+  const secondFoc = focs[1] ?? "第二个一阶条件";
+  const determinant = focs[2] ?? "$D=t_Bt_S-\\alpha_B\\alpha_S$";
+
+  return [
+    "我把符号均衡求解过程展开写在中间，右侧仍然保留可检查和编辑的结构化均衡资产。",
+    `第一步，从买家和卖家的无差异条件出发，先解出两侧需求份额。买家侧平台 A 的份额为 $n_A^B=\\frac{1}{2}+\\frac{t_S\\Delta s-\\alpha_Bq\\Delta\\tau}{2D}$，卖家侧平台 A 的份额为 $n_A^S=\\frac{1}{2}+\\frac{\\alpha_S\\Delta s-qt_B\\Delta\\tau}{2D}$，其中 $\\Delta s=s_A-s_B$、$\\Delta\\tau=\\tau_A-\\tau_B$，并且 ${determinant}。平台 B 的份额由 $n_B^B=1-n_A^B$ 和 $n_B^S=1-n_A^S$ 得到。`,
+    `第二步，把需求份额代入平台利润函数 $\\Pi_i=\\tau_i q n_i^S n_i^B-s_i n_i^B$。在对称内部候选均衡 $\\tau_A=\\tau_B=\\tau$、$s_A=s_B=s$ 下，对平台 A 的佣金和补贴分别求一阶条件，可以整理为 ${firstFoc} 与 ${secondFoc}。`,
+    `第三步，联立这两个一阶条件解出对称闭式解。结果是：${equilibriumResult.closedForm}`,
+    "最后检查存在条件：需要两侧需求反馈可解，即 $D>0$；如果论文还要求佣金和补贴非负，还要分别检查 $t_S\\ge 2\\alpha_B$ 以及 $t_S+\\alpha_S\\ge 2(t_B+\\alpha_B)$。确认这些条件之后，再进入性质分析才是稳的。",
+  ].join("\n\n");
+}
+
+function isLegacyEquilibriumSummaryMessage(content: string) {
+  return (
+    content.includes("我先给出一版可写入论文推导的符号均衡资产：从两侧无差异条件得到需求份额") ||
+    content.includes("当前模型没有通过本地确定性符号求解器的覆盖范围检查，所以我没有套用默认 Hotelling 闭式解。右侧会停在均衡页")
+  );
+}
+
+function formatInlineMath(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.includes("$") ? trimmed : `$${trimmed}$`;
+}
+
 function applySymbolicEquilibriumResult(
   project: ResearchProject,
   session: ResearchSession,
-  messages: ResearchSessionMessage[]
+  messages: ResearchSessionMessage[],
+  equilibriumResult: EquilibriumResult
 ): ResearchProject {
-  const direction = getActiveDirection(session);
-  const equilibriumResult = createEquilibriumFallbackForDirection(direction);
+  const hasSolvedEquilibrium = equilibriumResult.status === "solved";
 
   return {
     ...project,
@@ -298,17 +367,29 @@ function applySymbolicEquilibriumResult(
       assetSummary: {
         ...session.assetSummary,
         equilibriumStatus: equilibriumResult.status,
-        pendingDecision: {
-          kind: "analyze_properties",
-          prompt:
-            "符号均衡资产已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。",
-        },
-        nextActions: [
-          "检查符号均衡推导",
-          "复制并运行 SymPy 求解代码",
-          "基于解析对象生成性质分析",
-          "生成性质分析",
-        ],
+        pendingDecision: hasSolvedEquilibrium
+          ? {
+              kind: "analyze_properties",
+              prompt:
+                "符号均衡资产已经生成。下一步可以对佣金、补贴、网络效应和差异化成本做符号性质分析。",
+            }
+          : {
+              kind: "solve_equilibrium",
+              prompt:
+                "当前模型还没有闭式均衡解。请先收窄模型结构或具体化机制函数，然后重新开始符号求解。",
+            },
+        nextActions: hasSolvedEquilibrium
+          ? [
+              "检查符号均衡推导",
+              "复制并运行 SymPy 求解代码",
+              "基于解析对象生成性质分析",
+              "生成性质分析",
+            ]
+          : [
+              "检查符号失败原因",
+              "把机制函数具体化或收窄为 canonical Hotelling 结构",
+              "重新开始符号求解",
+            ],
       },
     },
   };
@@ -728,20 +809,6 @@ function createFallbackModelForDirection(
   return createGenericDirectionSpecificModel(direction);
 }
 
-function createEquilibriumFallbackForDirection(
-  direction?: ResearchDirection
-): EquilibriumResult {
-  if (!direction || direction.id === DEFAULT_ID) {
-    return createSymbolicHotellingFallbackResult();
-  }
-
-  if (isSellerMultihomingDirection(direction)) {
-    return createSellerMultihomingEquilibriumFallback();
-  }
-
-  return createGenericDirectionSpecificEquilibriumFallback(direction);
-}
-
 function createPropertyAnalysesForDirection(
   direction: ResearchDirection | undefined,
   equilibrium: EquilibriumResult
@@ -1119,150 +1186,6 @@ export function createSymbolicEquilibriumScaffoldResult(): EquilibriumResult {
     derivation: "等待用户确认模型设定后继续推导符号化均衡。",
     code: "",
     warnings: ["当前仅搭建符号化均衡条件，不进行数值模拟。"],
-  };
-}
-
-function createSymbolicHotellingFallbackResult(): EquilibriumResult {
-  return {
-    status: "solved",
-    concept: "对称内部纳什均衡（本地符号闭式解）",
-    solvingSteps: [
-      "由买家无差异条件 U_A^B=U_B^B 得到买家侧平台 A 份额 n_A^B。",
-      "由卖家无差异条件 U_A^S=U_B^S 得到卖家侧平台 A 份额 n_A^S。",
-      "令 D=t_Bt_S-\\alpha_B\\alpha_S，并把 n_i^B 与 n_i^S 代入平台利润函数 \\Pi_i=\\tau_i q n_i^S n_i^B-s_i n_i^B。",
-      "在对称内部候选均衡 \\tau_A=\\tau_B=\\tau, s_A=s_B=s 下整理一阶条件。",
-      "联立对称一阶条件得到闭式 \\tau^* 与 s^*，再列出内部解和局部二阶条件。",
-    ],
-    focs: [
-      "D-q\\tau(t_B+\\alpha_B)+2\\alpha_B s=0",
-      "q\\tau(t_S+\\alpha_S)-2D-2t_Ss=0",
-      "D=t_Bt_S-\\alpha_B\\alpha_S",
-    ],
-    conditions: [
-      "D=t_Bt_S-\\alpha_B\\alpha_S>0，保证两侧需求反馈可解。",
-      "\\tau^*=(t_S-2\\alpha_B)/q；若论文要求卖家佣金非负，需要 t_S\\ge 2\\alpha_B。",
-      "s^*=(t_S+\\alpha_S-2t_B-2\\alpha_B)/2；若论文要求买家补贴非负，需要 t_S+\\alpha_S\\ge 2(t_B+\\alpha_B)。",
-      "对称候选给出 n_A^{B*}=n_A^{S*}=1/2；内部解还需满足局部二阶条件。",
-      "局部二阶条件可用 Hessian 负定检验：\\Pi_{\\tau\\tau}<0 且 \\det(H)>0。",
-    ],
-    closedForm:
-      "在对称内部均衡中：$\\tau_A^*=\\tau_B^*=\\frac{t_S-2\\alpha_B}{q}$，$s_A^*=s_B^*=\\frac{t_S+\\alpha_S-2t_B-2\\alpha_B}{2}$，且 $n_A^{B*}=n_B^{B*}=n_A^{S*}=n_B^{S*}=\\frac{1}{2}$。",
-    derivation:
-      "由买家无差异条件和卖家无差异条件可得 $n_A^B=\\frac{1}{2}+\\frac{t_S\\Delta s-\\alpha_B q\\Delta\\tau}{2D}$，$n_A^S=\\frac{1}{2}+\\frac{\\alpha_S\\Delta s-qt_B\\Delta\\tau}{2D}$，其中 $\\Delta s=s_A-s_B$，$\\Delta\\tau=\\tau_A-\\tau_B$，$D=t_Bt_S-\\alpha_B\\alpha_S$。代入 $\\Pi_A=\\tau_A q n_A^Sn_A^B-s_A n_A^B$ 后，在对称候选 $\\tau_A=\\tau_B=\\tau$、$s_A=s_B=s$ 处，一阶条件化为 $D-q\\tau(t_B+\\alpha_B)+2\\alpha_Bs=0$ 和 $q\\tau(t_S+\\alpha_S)-2D-2t_Ss=0$。联立解得 $\\tau^*=(t_S-2\\alpha_B)/q$，$s^*=(t_S+\\alpha_S-2t_B-2\\alpha_B)/2$。该本地结果只声明对称内部闭式解；若研究方向需要非对称或多机制扩展，应继续调用模型生成链路做一般符号求解。",
-    code: `# sympy symbolic symmetric equilibrium
-import sympy as sp
-
-tau_A, tau_B, s_A, s_B, tau, s, q = sp.symbols(
-    "tau_A tau_B s_A s_B tau s q", positive=True
-)
-t_B, t_S = sp.symbols("t_B t_S", positive=True)
-alpha_B, alpha_S = sp.symbols("alpha_B alpha_S", real=True)
-nA_B, nA_S = sp.symbols("nA_B nA_S", real=True)
-
-nB_B = 1 - nA_B
-nB_S = 1 - nA_S
-
-buyer_indifference = sp.Eq(
-    nA_B,
-    (t_B + s_A - s_B + alpha_B * (nA_S - nB_S)) / (2 * t_B),
-)
-seller_indifference = sp.Eq(
-    nA_S,
-    (t_S - q * (tau_A - tau_B) + alpha_S * (nA_B - nB_B)) / (2 * t_S),
-)
-
-demand_solution = sp.solve(
-    [buyer_indifference, seller_indifference],
-    [nA_B, nA_S],
-    dict=True,
-    simplify=True,
-)
-
-nA_B_expr = sp.simplify(demand_solution[0][nA_B])
-nA_S_expr = sp.simplify(demand_solution[0][nA_S])
-Pi_A = tau_A * q * nA_S_expr * nA_B_expr - s_A * nA_B_expr
-
-foc_tau_sym = sp.factor(
-    sp.diff(Pi_A, tau_A).subs({tau_A: tau, tau_B: tau, s_A: s, s_B: s})
-)
-foc_s_sym = sp.factor(
-    sp.diff(Pi_A, s_A).subs({tau_A: tau, tau_B: tau, s_A: s, s_B: s})
-)
-symmetric_solution = sp.solve(
-    [foc_tau_sym, foc_s_sym],
-    [tau, s],
-    dict=True,
-    simplify=True,
-)
-
-print("nA_B =", nA_B_expr)
-print("nA_S =", nA_S_expr)
-print("symmetric FOC_tau =", foc_tau_sym)
-print("symmetric FOC_s =", foc_s_sym)
-print("symmetric solution =", symmetric_solution)`,
-    warnings: [
-      "当前本地结果给出的是对称内部闭式解，不声称覆盖一般非对称均衡。",
-      "均衡求解阶段不使用数值模拟；数值代入只应出现在后续仿真模块。",
-      "如果继续加入非对称平台、质量验证努力或多期状态变量，应重新做一般符号求解。",
-    ],
-  };
-}
-
-function createSellerMultihomingEquilibriumFallback(): EquilibriumResult {
-  const core = createSymbolicHotellingFallbackResult();
-  return {
-    ...core,
-    concept: "卖家多归属方向的收窄对称内部均衡（本地闭式解）",
-    solvingSteps: [
-      "把卖家多归属方向先收窄为可求解的内部区域：活跃卖家可同时出现在两个平台，记作 m_{AB}^*=1，平台竞争仍由两侧 Hotelling 份额决定。",
-      ...core.solvingSteps,
-      "把多归属机制作为当前闭式核心的适用区域说明保留；如果要让 m_A、m_B、m_{AB} 内生变化，需要另行求解包含互补条件的完整系统。",
-    ],
-    focs: core.focs,
-    conditions: [
-      ...core.conditions,
-      "卖家多归属方向在当前闭式核心中采用活跃多归属区域：m_{AB}^*=1，且多归属成本 \\kappa 不高到破坏该区域。",
-      "如果论文需要内生 m_A、m_B、m_{AB}，应把卖家入驻互补条件加入系统后重新求解。"
-    ],
-    closedForm: `${core.closedForm}\n\n在当前收窄的多归属活跃区域中，$m_{AB}^*=1$，$m_A^*=m_B^*=0$ 作为外生区域条件保留；佣金、补贴和需求份额由上述对称内部闭式解给出。`,
-    derivation:
-      `${core.derivation}\n\n这一步没有声称已经完整内生求出卖家多归属选择，而是把卖家多归属方向收窄到“多归属区域已经活跃”的可求解核心。这样主流程能得到真正的星号闭式解；若论文问题的重点是多归属规模本身，则下一轮应把 m_A、m_B、m_{AB} 的截止条件补全后再做完整均衡。`,
-    code: core.code,
-    warnings: [
-      "这是卖家多归属方向的收窄可求解核心，不是包含所有入驻互补条件的完整多归属均衡。",
-      ...core.warnings,
-    ],
-  };
-}
-
-function createGenericDirectionSpecificEquilibriumFallback(
-  direction: ResearchDirection | undefined
-): EquilibriumResult {
-  const core = createSymbolicHotellingFallbackResult();
-  const directionId = direction?.id ?? "custom-direction";
-  const title = direction?.title ?? directionId;
-
-  return {
-    ...core,
-    concept: `${title} 的可求解核心均衡（本地闭式解）`,
-    solvingSteps: [
-      `把 ${title} 先收窄到两平台、两侧线性 Hotelling 的可求解核心，机制差异暂时作为适用区域和后续扩展说明保留。`,
-      ...core.solvingSteps,
-      `后续若要把 ${directionId} 的专属机制变量内生化，应在这个闭式核心上新增机制方程后重新求解。`,
-    ],
-    focs: core.focs,
-    conditions: [
-      ...core.conditions,
-      `${title} 的机制项当前不进入一阶条件，只作为收窄模型的论文语境和后续扩展方向。`,
-    ],
-    closedForm: core.closedForm,
-    derivation:
-      `${core.derivation}\n\n这是 ${title} 的可求解核心版本：它保留研究方向语境，但先不把 ${directionId} 的专属机制变量写入平台一阶条件。这样可以优先得到可检查、可导出的闭式均衡解，避免主流程停在隐式草稿。`,
-    code: core.code,
-    warnings: [
-      `这是 ${title} 的收窄可求解核心，不是 ${directionId} 的完整机制均衡。`,
-      ...core.warnings,
-    ],
   };
 }
 

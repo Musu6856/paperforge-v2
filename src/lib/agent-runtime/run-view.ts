@@ -13,6 +13,7 @@ export type AgentRunStepViewModel = {
   statusTone: AgentRunStatusTone;
   summary?: string;
   durationLabel: string;
+  defaultExpanded: boolean;
 };
 
 export type AgentRunViewModel =
@@ -23,10 +24,12 @@ export type AgentRunViewModel =
         frameworkLabel: string;
         workflowId: string;
         actionLabel: string;
+        summaryLabel: string;
         statusLabel: string;
         statusTone: AgentRunStatusTone;
         durationLabel: string;
         error?: string;
+        metadata: Array<{ label: string; value: string }>;
         steps: AgentRunStepViewModel[];
       };
       emptyTitle?: never;
@@ -54,17 +57,27 @@ export function createAgentRunViewModel(
     };
   }
 
+  const frameworkLabel = formatFramework(latestRun.framework);
+  const statusLabel = latestRun.status === "success" ? "Completed" : "Failed";
+  const durationLabel = formatDuration(latestRun.startedAt, latestRun.endedAt, now);
+
   return {
     hasRun: true,
     run: {
       id: latestRun.id,
-      frameworkLabel: formatFramework(latestRun.framework),
+      frameworkLabel,
       workflowId: latestRun.workflowId,
       actionLabel: latestRun.action,
-      statusLabel: latestRun.status === "success" ? "Completed" : "Failed",
+      summaryLabel: `${frameworkLabel} · ${statusLabel} · ${latestRun.action}`,
+      statusLabel,
       statusTone: latestRun.status === "success" ? "success" : "warning",
-      durationLabel: formatDuration(latestRun.startedAt, latestRun.endedAt, now),
+      durationLabel,
       error: latestRun.error,
+      metadata: [
+        { label: "Workflow", value: latestRun.workflowId },
+        { label: "Action", value: latestRun.action },
+        { label: "Duration", value: durationLabel },
+      ],
       steps: latestRun.steps.map((step) => ({
         id: step.id,
         label: step.label,
@@ -72,6 +85,7 @@ export function createAgentRunViewModel(
         statusTone: getStepStatusTone(step.status),
         summary: step.summary,
         durationLabel: formatDuration(step.startedAt, step.endedAt, now),
+        defaultExpanded: step.status === "failed",
       })),
     },
   };

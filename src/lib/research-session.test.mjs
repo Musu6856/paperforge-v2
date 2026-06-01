@@ -7,6 +7,7 @@ import {
   createExplorationProject,
   generatePropertyAnalysis,
   generateSymbolicEquilibrium,
+  hydrateEquilibriumDerivationMessages,
   normalizeResearchProjectForWorkspace,
 } from "./research-session.ts";
 
@@ -182,7 +183,7 @@ test("adopts seller multihoming with a direction-specific fallback scaffold", ()
   );
 });
 
-test("seller-multihoming equilibrium fallback returns a narrowed closed-form core", () => {
+test("seller-multihoming symbolic solve fails instead of reusing default closed form", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform seller multihoming",
@@ -195,30 +196,23 @@ test("seller-multihoming equilibrium fallback returns a narrowed closed-form cor
   const solved = generateSymbolicEquilibrium(confirmed);
 
   assert.equal(solved.researchSession?.phase, "equilibrium");
-  assert.equal(solved.equilibriumResult?.status, "solved");
-  assert.match(
-    solved.equilibriumResult?.closedForm ?? "",
+  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
+  assert.equal(solved.equilibriumResult?.closedForm, "");
+  assert.doesNotMatch(
+    solved.equilibriumResult?.derivation ?? "",
     /\\tau_A\^\*=\\tau_B\^\*=\\frac\{t_S-2\\alpha_B\}\{q\}/
   );
   assert.match(
-    solved.equilibriumResult?.closedForm ?? "",
-    /m_{AB}\^\*=1/
-  );
-  assert.match(
-    [
-      solved.equilibriumResult?.concept,
-      solved.equilibriumResult?.derivation,
-      ...(solved.equilibriumResult?.warnings ?? []),
-    ].join("\n"),
-    /卖家多归属|收窄|对称内部/
+    solved.equilibriumResult?.warnings.join("\n") ?? "",
+    /unresolved mechanism function|unsupported/i
   );
   assert.equal(
     solved.researchSession?.assetSummary.pendingDecision?.kind,
-    "analyze_properties"
+    "solve_equilibrium"
   );
 });
 
-test("non-recommended property fallback avoids default commission subsidy comparative statics", () => {
+test("seller-multihoming symbolic failure blocks default property analysis", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform seller multihoming",
@@ -230,30 +224,14 @@ test("non-recommended property fallback avoids default commission subsidy compar
     )
   );
 
-  const analyzed = generatePropertyAnalysis(solved);
-  const analysisText = (analyzed.propertyAnalyses ?? [])
-    .map((analysis) =>
-      [
-        analysis.target,
-        analysis.parameter,
-        analysis.symbolicResult,
-        analysis.propositionDraft,
-        analysis.proofSketch,
-        analysis.intuition,
-        ...(analysis.warnings ?? []),
-      ].join("\n")
-    )
-    .join("\n");
-
-  assert.equal(analyzed.researchSession?.phase, "analysis");
-  assert.doesNotMatch(
-    analysisText,
-    /\\frac\{\\partial \\tau_i\^\*\}\{\\partial \\alpha_B\}=-\\frac\{2\}\{q\}/
+  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
+  assert.throws(
+    () => generatePropertyAnalysis(solved),
+    /solved symbolic equilibrium asset/
   );
-  assert.match(analysisText, /multihoming|m_i|kappa|seller/i);
 });
 
-test("other non-default directions use a direction-specific symbolic scaffold", () => {
+test("other non-default directions fail until mechanism functions are concretized", () => {
   const project = createExplorationProject({
     id: "11111111-1111-4111-8111-111111111111",
     rawIdea: "Research secondhand platform quality disclosure",
@@ -264,32 +242,25 @@ test("other non-default directions use a direction-specific symbolic scaffold", 
   );
 
   const solved = generateSymbolicEquilibrium(confirmed);
-  const analyzed = generatePropertyAnalysis(solved);
   const combinedText = [
     solved.hotellingModel?.modelSetupDraft,
     ...(solved.hotellingModel?.profitFunctions.map((entry) => entry.expression) ?? []),
     solved.equilibriumResult?.status,
     solved.equilibriumResult?.closedForm,
     solved.equilibriumResult?.derivation,
-    ...(analyzed.propertyAnalyses?.map((analysis) =>
-      [
-        analysis.symbolicResult,
-        analysis.propositionDraft,
-        analysis.proofSketch,
-        ...(analysis.warnings ?? []),
-      ].join("\n")
-    ) ?? []),
+    ...(solved.equilibriumResult?.warnings ?? []),
   ].join("\n");
 
-  assert.equal(solved.equilibriumResult?.status, "solved");
+  assert.equal(solved.equilibriumResult?.status, "symbolic_failure");
   assert.match(combinedText, /quality-disclosure-trust|direction-specific/i);
+  assert.equal(solved.equilibriumResult?.closedForm, "");
   assert.match(
     combinedText,
-    /\\tau_A\^\*=\\tau_B\^\*=\\frac\{t_S-2\\alpha_B\}\{q\}/
+    /unresolved mechanism function|unsupported/i
   );
-  assert.match(
-    combinedText,
-    /质量|披露|可求解核心|收窄/
+  assert.equal(
+    solved.researchSession?.assetSummary.pendingDecision?.kind,
+    "solve_equilibrium"
   );
 });
 
@@ -379,6 +350,13 @@ test("generates symbolic equilibrium and moves the session into equilibrium phas
     /n_A\^B=\\frac\{1\}\{2\}\+\\frac\{t_S\\Delta s-\\alpha_B q\\Delta\\tau\}\{2D\}/
   );
   assert.match(solved.equilibriumResult?.code ?? "", /sp\.solve/);
+  const equilibriumMessage = solved.researchSession?.messages.at(-1)?.content ?? "";
+  assert.match(equilibriumMessage, /第一步/);
+  assert.match(equilibriumMessage, /第二步/);
+  assert.match(equilibriumMessage, /第三步/);
+  assert.match(equilibriumMessage, /D-q\\tau\(t_B\+\\alpha_B\)\+2\\alpha_B s=0/);
+  assert.match(equilibriumMessage, /\\tau_A\^\*=\\tau_B\^\*/);
+  assert.doesNotMatch(equilibriumMessage, /\$\$/);
   assert.equal(solved.researchSession?.assetSummary.equilibriumStatus, "solved");
   assert.equal(
     solved.researchSession?.assetSummary.pendingDecision?.kind,
@@ -395,6 +373,36 @@ test("generates symbolic equilibrium and moves the session into equilibrium phas
     solved.researchSession?.messages.at(-1)?.content ?? "",
     /符号均衡/
   );
+});
+
+test("hydrates legacy equilibrium summaries into detailed derivation messages", () => {
+  const project = createExplorationProject({
+    id: "11111111-1111-4111-8111-111111111111",
+    rawIdea: "研究二手平台佣金和补贴策略",
+    now: 1710000000000,
+  });
+  const solved = generateSymbolicEquilibrium(
+    confirmResearchModel(
+      adoptResearchDirection(project, "secondhand-commission-subsidy-hotelling")
+    )
+  );
+  const legacyMessages = (solved.researchSession?.messages ?? []).map((message) =>
+    message.id.startsWith("msg-equilibrium-solved")
+      ? {
+          ...message,
+          content:
+            "我先给出一版可写入论文推导的符号均衡资产：从两侧无差异条件得到需求份额，再把需求代入平台利润函数，并在对称内部候选均衡下联立一阶条件得到佣金与补贴的闭式解。右侧会停在均衡页，方便先检查闭式解、一阶条件和存在条件；确认可用后再进入性质分析。若后续模型加入非对称平台或更多状态变量，应继续做一般符号求解，而不是改用数值模拟。",
+        }
+      : message
+  );
+
+  const hydrated = hydrateEquilibriumDerivationMessages(
+    legacyMessages,
+    solved.equilibriumResult
+  );
+
+  assert.match(hydrated.at(-1)?.content ?? "", /第一步/);
+  assert.match(hydrated.at(-1)?.content ?? "", /第二步/);
 });
 
 test("tracks session decisions from direction discovery to solve readiness", () => {

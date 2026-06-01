@@ -53,14 +53,21 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
   assert.equal(view.run?.id, "agent-run-new");
   assert.equal(view.run?.frameworkLabel, "Mastra");
   assert.equal(view.run?.actionLabel, "build_model");
+  assert.equal(view.run?.summaryLabel, "Mastra · Completed · build_model");
   assert.equal(view.run?.durationLabel, "3.6s");
   assert.equal(view.run?.statusTone, "success");
+  assert.deepEqual(view.run?.metadata, [
+    { label: "Workflow", value: "paperforge-research-workflow" },
+    { label: "Action", value: "build_model" },
+    { label: "Duration", value: "3.6s" },
+  ]);
   assert.deepEqual(
     view.run?.steps.map((step) => ({
       id: step.id,
       durationLabel: step.durationLabel,
       statusLabel: step.statusLabel,
       statusTone: step.statusTone,
+      defaultExpanded: step.defaultExpanded,
     })),
     [
       {
@@ -68,15 +75,53 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
         durationLabel: "0.1s",
         statusLabel: "Completed",
         statusTone: "success",
+        defaultExpanded: false,
       },
       {
         id: "run_research_generation",
         durationLabel: "3.3s",
         statusLabel: "Completed",
         statusTone: "success",
+        defaultExpanded: false,
       },
     ]
   );
+});
+
+test("agent run view model expands failed steps by default", () => {
+  const view = createAgentRunViewModel(
+    {
+      agentRuns: [
+        {
+          id: "agent-run-failed",
+          framework: "mastra",
+          workflowId: "paperforge-research-workflow",
+          action: "solve_equilibrium",
+          status: "failed",
+          startedAt: 1000,
+          endedAt: 21000,
+          error: "Provider timed out.",
+          steps: [
+            {
+              id: "run_research_generation",
+              label: "Run generation",
+              status: "failed",
+              summary: "Provider timed out.",
+              startedAt: 1000,
+              endedAt: 21000,
+            },
+          ],
+        },
+      ],
+    },
+    22000
+  );
+
+  assert.equal(view.hasRun, true);
+  assert.equal(view.run?.summaryLabel, "Mastra · Failed · solve_equilibrium");
+  assert.equal(view.run?.statusTone, "warning");
+  assert.equal(view.run?.durationLabel, "20s");
+  assert.equal(view.run?.steps[0]?.defaultExpanded, true);
 });
 
 test("agent run view model exposes a clear empty state", () => {

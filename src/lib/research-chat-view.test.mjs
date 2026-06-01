@@ -138,3 +138,55 @@ test("chat view removes pending assistant once confirmed assistant reply arrives
     ["msg-user-confirmed", "msg-assistant-confirmed"]
   );
 });
+
+test("chat view attaches the latest agent run summary to the latest assistant message", () => {
+  const confirmedMessages = [
+    {
+      id: "msg-user",
+      role: "user",
+      content: "请生成一个研究方向。",
+      createdAt: 1710000000000,
+    },
+    {
+      id: "msg-assistant",
+      role: "assistant",
+      content: "已生成候选方向。",
+      createdAt: 1710000001000,
+    },
+  ];
+  const agentRun = {
+    id: "agent-run-1",
+    frameworkLabel: "Mastra",
+    workflowId: "paperforge-research-workflow",
+    actionLabel: "discover_directions",
+    summaryLabel: "Mastra · Completed · discover_directions",
+    statusLabel: "Completed",
+    statusTone: "success",
+    durationLabel: "4.2s",
+    metadata: [
+      { label: "Workflow", value: "paperforge-research-workflow" },
+      { label: "Action", value: "discover_directions" },
+      { label: "Duration", value: "4.2s" },
+    ],
+    steps: [
+      {
+        id: "plan_research_action",
+        label: "规划研究动作",
+        statusLabel: "Completed",
+        statusTone: "success",
+        durationLabel: "0.0s",
+        defaultExpanded: false,
+      },
+    ],
+  };
+
+  const viewMessages = createResearchChatViewMessages(
+    confirmedMessages,
+    null,
+    null,
+    agentRun
+  );
+
+  assert.equal(viewMessages[0].agentRun, undefined);
+  assert.equal(viewMessages[1].agentRun?.summaryLabel, agentRun.summaryLabel);
+});

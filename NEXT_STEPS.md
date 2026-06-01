@@ -38,6 +38,15 @@ Current scope:
 - Added a right-side `Agent` assets tab that shows the latest Mastra run and steps.
 - Added dev-only in-memory project storage when `NODE_ENV=development` and `DATABASE_URL` is missing.
 - Verified the no-db local API path can generate, save, list, update, and delete projects.
+- Added an Agent tab browser smoke checklist for the local create-project flow.
+- Ran the checklist on `http://localhost:3001/research?new=1`: project creation passed, the `Agent` tab showed `paperforge-research-workflow`, `discover_directions`, run status, duration, and the three Mastra steps; browser error console was empty.
+- Implemented the compact collapsible Agent trace layout: the run summary exposes status/action/workflow/duration, successful steps are compact by default, and failed steps default open with their failure summary.
+- Re-verified the Agent tab after the compact layout change with a local project: the `Agent` tab opened, a step disclosure expanded to show the generation summary, and browser error console remained empty.
+- Added a compact Agent progress surface under the latest assistant message in the middle conversation.
+- Re-verified the middle conversation Agent progress surface with a local project: the summary appeared under the assistant reply, expanded to show workflow/action/duration and all three Mastra steps, and browser error console remained empty.
+- Started the symbolic equilibrium milestone with a narrow deterministic Hotelling solver under `src/lib/symbolic-equilibrium-solver.ts`.
+- The local solver now returns the closed-form commission/subsidy equilibrium only for the canonical two-platform, two-sided Hotelling structure; unresolved mechanism functions or noncanonical profit equations return `symbolic_failure` instead of reusing the default closed-form result.
+- `generateSymbolicEquilibrium` is now wired through the deterministic solver, and property analysis is blocked unless the equilibrium result is actually `solved`.
 
 ## Verification Commands
 
@@ -68,16 +77,42 @@ npm run dev -- --port 3001
 
 In development, the app can run without `DATABASE_URL`. Project data then lives in memory and resets when the dev server restarts.
 
+## Agent Tab Browser Smoke Checklist
+
+Purpose: verify the local no-db development flow makes the Mastra run visible after creating a research project.
+
+Preconditions:
+
+- Run from this repo, not the original baseline repo.
+- Start the app with `npm run dev`; use `npm run dev -- --port 3001` if port 3000 is occupied.
+- Leave `DATABASE_URL` unset for the local in-memory development project store, or use a disposable local database.
+
+Steps:
+
+1. Open `/research?new=1`.
+2. Submit a concrete Chinese research idea in the center chat composer.
+3. Wait for navigation to `/research/<project-id>` and for the right asset pane to populate directions.
+4. Click the right-side `Agent` asset tab.
+   - If Clerk's keyless prompt overlaps the lower-right app area, collapse it first so it does not intercept tab clicks.
+5. Confirm the Agent tab shows the latest run status, workflow id, action, duration, and execution steps.
+6. Confirm the expected Mastra steps are visible: `规划研究动作`, `执行研究生成`, and `整理结构化结果`.
+7. If generation falls back because no model key is configured, confirm the Agent run still completes and the step summary reports `source=fallback`.
+8. Check browser console output for unexpected errors.
+
+Pass criteria:
+
+- A project is created and saved in the local development project store.
+- The `Agent` tab is reachable without collapsing or resizing the right pane.
+- The tab exposes the Mastra workflow identity, action, status, step list, and failure reason area when applicable.
+- No unhandled console error appears during the create-project flow.
+
 ## Next Priority
 
-1. Open the local app and run the full UI flow: create a research idea, confirm the generated project, and inspect the right-side `Agent` tab.
-2. Make the Agent trace more useful in the product: show action, status, workflow steps, and any failure reason in a compact collapsible layout.
-3. Improve the middle conversation so Agent progress is visible there too, not only on the right.
-4. After the Agent shell feels real, decide whether the next milestone is guided model setup or symbolic equilibrium solving.
+1. Continue the symbolic equilibrium milestone beyond the canonical Hotelling core.
 
 Recommended next implementation step:
 
-- Add a small UI-level smoke test or manual browser checklist for the Agent tab after creating a research project.
+- Extend solver coverage only when the model structure is explicit enough to verify: first add a typed reaction-function/implicit-system result for concretized mechanisms, then add UI copy that explains how to narrow unsupported models.
 
 ## Boundaries
 

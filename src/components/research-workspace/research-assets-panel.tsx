@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ChevronDown,
   CheckCircle2,
   CircleDot,
   Download,
@@ -22,7 +23,11 @@ import { PendingAssetPatches } from "./pending-asset-patches";
 import { PhaseIndicator } from "./phase-indicator";
 import { ResearchAssetsTabs } from "./research-assets-tabs";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
-import { createAgentRunViewModel } from "@/lib/agent-runtime/run-view";
+import {
+  createAgentRunViewModel,
+  type AgentRunStepViewModel,
+  type AgentRunViewModel,
+} from "@/lib/agent-runtime/run-view";
 import {
   buildResearchProjectMarkdown,
   getResearchProjectMarkdownFilename,
@@ -373,68 +378,92 @@ function AgentRunTab({
         title={copy.agentTraceTitle}
         description={copy.agentTraceDescription}
       >
-        <div className="rounded-md border bg-background px-3 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <StatusBadge
-              label={`${view.run.frameworkLabel} · ${view.run.statusLabel}`}
-              tone={view.run.statusTone}
-            />
-            <span className="text-[11px] font-medium text-muted-foreground">
-              {view.run.durationLabel}
-            </span>
-          </div>
-          <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-[11px] leading-5 sm:grid-cols-2">
-            <div className="min-w-0">
-              <dt className="text-muted-foreground">Workflow</dt>
-              <dd className="mt-0.5 break-words font-medium text-foreground">
-                {view.run.workflowId}
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-muted-foreground">Action</dt>
-              <dd className="mt-0.5 break-words font-medium text-foreground">
-                {view.run.actionLabel}
-              </dd>
-            </div>
-          </dl>
-          {view.run.error ? <WarningBox text={view.run.error} /> : null}
-        </div>
+        <AgentRunSummaryDisclosure run={view.run} />
       </AssetSection>
 
       <AssetSection title={copy.agentStepsTitle}>
         {view.run.steps.length > 0 ? (
-          <div className="space-y-2">
-            {view.run.steps.map((step) => (
-              <article
-                key={step.id}
-                className="rounded-md border bg-background px-3 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="min-w-0 text-xs font-semibold text-foreground">
-                    {step.label}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">
-                      {step.durationLabel}
-                    </span>
-                    <StatusBadge
-                      label={step.statusLabel}
-                      tone={step.statusTone}
-                    />
-                  </div>
-                </div>
-                {step.summary ? (
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    {step.summary}
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
+          <AgentStepDisclosureList steps={view.run.steps} />
         ) : (
           <EmptyLine text={copy.agentEmptyDescription} />
         )}
       </AssetSection>
+    </div>
+  );
+}
+
+function AgentRunSummaryDisclosure({
+  run,
+}: {
+  run: Extract<AgentRunViewModel, { hasRun: true }>["run"];
+}) {
+  return (
+    <details className="group rounded-md border bg-background" open>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">
+            {run.summaryLabel}
+          </p>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+            {run.workflowId}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge label={run.statusLabel} tone={run.statusTone} />
+          <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
+        </div>
+      </summary>
+      <div className="border-t px-3 pb-3 pt-3">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-[11px] leading-5 sm:grid-cols-3">
+          {run.metadata.map((item) => (
+            <div key={item.label} className="min-w-0">
+              <dt className="text-muted-foreground">{item.label}</dt>
+              <dd className="mt-0.5 break-words font-medium text-foreground">
+                {item.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        {run.error ? <WarningBox text={run.error} /> : null}
+      </div>
+    </details>
+  );
+}
+
+function AgentStepDisclosureList({
+  steps,
+}: {
+  steps: AgentRunStepViewModel[];
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border bg-background">
+      {steps.map((step, index) => (
+        <details
+          key={step.id}
+          className={index > 0 ? "group border-t" : "group"}
+          open={step.defaultExpanded}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-foreground">
+                {step.label}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {step.durationLabel}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <StatusBadge label={step.statusLabel} tone={step.statusTone} />
+              <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
+            </div>
+          </summary>
+          {step.summary ? (
+            <p className="border-t bg-muted/25 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+              {step.summary}
+            </p>
+          ) : null}
+        </details>
+      ))}
     </div>
   );
 }
