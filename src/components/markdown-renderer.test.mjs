@@ -47,3 +47,29 @@ test("markdown renderer does not wrap tokens inside code spans or fences", () =>
     /```python\ntau_A, tau_B = sp\.symbols\("tau_A tau_B"\)\n```/
   );
 });
+
+test("markdown renderer preserves display math blocks", () => {
+  const content = [
+    "买家无差异点满足：",
+    "$$",
+    "v_B + \\alpha_B n_A^S + s_A - t_B x^* = v_B + \\alpha_B n_B^S + s_B - t_B (1 - x^*)",
+    "$$",
+  ].join("\n");
+
+  const normalized = normalizeMarkdownMath(content);
+
+  assert.equal(normalized, content);
+  assert.doesNotMatch(normalized, /\$v_B\$/);
+  assert.doesNotMatch(normalized, /\$n_A\^S\$/);
+});
+
+test("markdown renderer wraps standalone raw LaTeX lines before token normalization", () => {
+  const content =
+    "\\tau^* = \\frac{2 t_S}{q} \\cdot \\frac{2 t_B t_S - \\alpha_B \\alpha_S}{4 t_B t_S - \\alpha_B \\alpha_S}, \\quad s^* = t_S \\cdot \\frac{2 t_B t_S - \\alpha_B \\alpha_S}{4 t_B t_S - \\alpha_B \\alpha_S}";
+
+  const normalized = normalizeMarkdownMath(content);
+
+  assert.equal(normalized, `$$${content}$$`);
+  assert.doesNotMatch(normalized, /\$t_S\$/);
+  assert.doesNotMatch(normalized, /\$alpha_B\$/);
+});
