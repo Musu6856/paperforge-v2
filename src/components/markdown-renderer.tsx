@@ -16,7 +16,7 @@ export function MarkdownRenderer({
   const safeContent = normalizeMarkdownMath(content);
 
   return (
-    <div className={`prose prose-sm max-w-none dark:prose-invert ${className || ""}`}>
+    <div className={`prose prose-sm max-w-full min-w-0 dark:prose-invert ${className || ""}`}>
       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
         {safeContent}
       </ReactMarkdown>

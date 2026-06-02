@@ -73,14 +73,14 @@ export function ChatPanel({
         {messages.length === 0 && emptyState ? (
           emptyState
         ) : (
-          <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-4">
             {messages.map((message) => (
               <article
                 key={message.id}
                 className={
                   message.role === "user"
-                    ? "self-end text-right"
-                    : "self-start text-left"
+                    ? "max-w-full self-end text-right"
+                    : "max-w-full self-start text-left"
                 }
               >
                 <div className="mb-1 text-xs text-muted-foreground">
@@ -89,8 +89,8 @@ export function ChatPanel({
                 <div
                   className={
                     message.isPending
-                      ? "rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2 text-muted-foreground"
-                      : "rounded-md border bg-card px-3 py-2 text-card-foreground"
+                      ? "max-w-full min-w-0 overflow-hidden rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2 text-muted-foreground"
+                      : "max-w-full min-w-0 overflow-hidden rounded-md border bg-card px-3 py-2 text-card-foreground"
                   }
                   aria-live={message.isPending ? "polite" : undefined}
                 >
