@@ -71,6 +71,14 @@ Current scope:
 - The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
 - The center chat composer now submits on plain Enter, keeps Shift+Enter for multiline drafts, and avoids submitting while IME composition is active.
 - The user manually verified the latest local flow after these fixes and reported no obvious issues.
+- The center conversation column now constrains Markdown/prose message bubbles to the available pane width, so property-analysis replies shrink correctly when the right research-assets pane is widened.
+- Browser-smoked the enhanced Agent trace UI after the latest commits:
+  - refreshing a local project kept the persisted history and opened the project record again;
+  - the middle conversation still showed the detailed derivation content;
+  - the inline Agent trace under the latest assistant message expanded to show workflow/action/duration plus plan, generation, and summary step details;
+  - the right-side Agent tab showed `paperforge-research-workflow`, action, duration, structured step details, provider/fallback source, result phase, asset counts, and assistant-message summary;
+  - no new browser console errors appeared during the smoke check; only the existing Clerk development-key warning was present.
+- Rechecked the `implicit_system` path at the code level because no existing local browser project had that status: the targeted research-session, research-flow, generation-result, and symbolic-solver tests passed 43/43.
 
 ## Verification Commands
 
@@ -89,10 +97,15 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 227/227.
+- `node --test "src/**/*.test.mjs"` passed, 229/229.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
+- Targeted `implicit_system` tests passed, 43/43:
+  - `src/lib/research-session.test.mjs`
+  - `src/lib/research-flow.test.mjs`
+  - `src/lib/research-generation-result.test.mjs`
+  - `src/lib/symbolic-equilibrium-solver.test.mjs`
 
 ## Local Run
 
@@ -140,14 +153,9 @@ Pass criteria:
 
 ## Next Priority
 
-1. Browser-smoke the enhanced Agent trace UI after the commit, especially:
-   - local project persistence after refresh;
-   - middle conversation detailed process display;
-   - right-side Agent trace structured details;
-   - inline Agent trace under the latest assistant message;
-   - `implicit_system` property-analysis path for non-default directions.
-2. Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should stay deterministic trace steps or become model-backed planning/summarization calls.
-3. Continue the symbolic equilibrium milestone beyond the current typed scaffolds.
+1. Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should stay deterministic trace steps or become model-backed planning/summarization calls.
+2. Continue the symbolic equilibrium milestone beyond the current typed scaffolds.
+3. Browser-smoke a real `implicit_system` project once a local record with that status exists, or create one intentionally in a separate test pass.
 
 Recommended next implementation step:
 
