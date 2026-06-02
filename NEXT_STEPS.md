@@ -189,9 +189,13 @@ Current production MVP shape:
 
 - Clerk protects `/research`, `/projects`, and `/api` routes outside development guest mode.
 - Neon/Drizzle is the production project store when `DATABASE_URL` is configured.
-- Vercel Marketplace Neon resource `paperforge-postgres-env` is connected to the Vercel `paperforge` project and exposes prefixed `NEON_` environment variables.
+- GitHub remote is `https://github.com/Musu6856/paperforge-v2.git`; the latest v2 branch and `main` have been pushed.
+- Vercel project is now the independent `paperforge-v2` project, not the old `paperforge` project.
+- Vercel Marketplace Neon resource `paperforge-v2-postgres` is connected to the Vercel `paperforge-v2` project and exposes prefixed `NEON_` environment variables.
 - The code resolves database URLs from `DATABASE_URL` first, then Neon-prefixed URLs such as `NEON_DATABASE_URL`; Drizzle migrations prefer unpooled Neon URLs when available.
-- The connected Neon database has been bootstrapped with the current `projects` table and indexes via Neon HTTP SQL because local `drizzle-kit push` still stalls on its websocket schema-pull step.
+- The connected v2 Neon database has been bootstrapped with the current `projects` table and indexes via Neon HTTP SQL because local `drizzle-kit push` still stalls on its websocket schema-pull step.
+- `npm run smoke:production-persistence` passed against the independent v2 Neon database when Node was run through the local proxy (`HTTP_PROXY`, `HTTPS_PROXY`, and `NODE_OPTIONS=--use-env-proxy`).
+- First Vercel deployment for the independent `paperforge-v2` project is ready at `https://paperforge-v2.vercel.app`; it does not touch the old `paperforge` project.
 - Local `.paperforge-dev/projects.json` storage is development-only and activates only in development guest mode without `DATABASE_URL`.
 - Project assets are stored in the `projects` table. The `research_session` JSONB field carries messages, pending decisions, asset state, and `agentRuns`, so Agent traces persist with the project for the current MVP.
 - Runtime model calls go through `/api/research/generate`, protected by user auth and the existing in-memory rate limiter.
@@ -205,10 +209,10 @@ npm run smoke:production-persistence
 
 上线前必须稳定的事项:
 
-- Verify a production-like Neon database path end to end with `DATABASE_URL`, `npm run db:push`, `npm run smoke:production-persistence`, project create/update/delete, refresh restore, and Agent trace persistence.
-- Current local blocker: this machine can pull Vercel env vars and can occasionally reach Neon HTTP, but connections to the Neon endpoint still time out intermittently. `npm run db:push` stalls at "Pulling schema from database...", and `npm run smoke:production-persistence` now fails with `UND_ERR_CONNECT_TIMEOUT` after the table bootstrap. Re-run from a network that can reach Neon reliably, or run the smoke from an environment with stable outbound access to the Neon endpoint.
+- Verify the deployed `paperforge-v2` app end to end in the browser after Clerk and provider environment variables are added to the new Vercel project.
+- Current local blocker: direct local connections to Neon still time out intermittently, and `npm run db:push` still stalls at "Pulling schema from database...". Local Neon HTTP smoke can pass by routing Node through the local proxy with `NODE_OPTIONS=--use-env-proxy`.
 - Keep dev fixtures out of the production user flow. `npm run dev:seed:simple-equilibrium` and `npm run dev:seed:implicit-system` are regression tools, not product entry points.
-- Confirm required deployment environment variables: Clerk keys, `DATABASE_URL`, and at least one provider key following the code fallback order `DEEPSEEK_API_KEY` -> `OPENAI_COMPATIBLE_API_KEY` -> `MIMO_API_KEY` -> `OPENAI_API_KEY`.
+- Confirm and add required deployment environment variables to the new `paperforge-v2` project: Clerk keys and at least one provider key following the code fallback order `DEEPSEEK_API_KEY` -> `OPENAI_COMPATIBLE_API_KEY` -> `MIMO_API_KEY` -> `OPENAI_API_KEY`. The v2 Neon variables are already present.
 - Decide whether the in-memory rate limiter is acceptable for the first public demo; for multi-instance production it should move to durable storage.
 - Decide whether embedded `researchSession.agentRuns` is enough for the MVP. A later production observability upgrade can split Agent runs into a separate table, but the current JSONB strategy is acceptable for a small launch.
 - Run browser smoke checks for both the normal generated-project flow and the two dev fixtures before each release candidate.
