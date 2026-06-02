@@ -66,6 +66,7 @@ Current scope:
 - The Mastra Agent runtime has been split into a more standard structure under `src/lib/agent-runtime/`:
   - `agents/research-agent.ts` owns the Agent identity, goal, guardrails, and stop-condition copy;
   - `planners/research-planner.ts` turns the requested research action plus project context into a concrete action plan;
+  - `planners/research-next-action.ts` observes the generated result and decides whether to suggest the next tool, wait for the user, or stop;
   - `executors/research-agent-loop.ts` owns the public `runResearchAgentWorkflow` execution path and run attachment;
   - `tools/` contains the structured research-generation tool wrapper and the Agent tool registry;
   - `memory/research-memory.ts` snapshots the current project/session context for planning;
@@ -78,6 +79,7 @@ Current scope:
   - `plan_research_action` records the selected tool, local plan, expected output, execution mode, memory snapshot, and guard decision;
   - `run_research_generation` records whether the result came from the provider or fallback, the resulting phase, asset status/counts, pending patch summary, and assistant-message summary;
   - `summarize_research_output` records the final readable summary, resulting phase, and next pending action.
+  - `decide_next_agent_action` records the bounded Agent decision after observing the result: suggest the next tool, wait for user input, or stop.
 - The right-side Agent tab and the inline Agent trace under the latest assistant message both display these step summaries/details without altering the assistant's main derivation text.
 - Development no-database project storage now persists to `.paperforge-dev/projects.json`, so local projects survive browser refreshes and dev server restarts.
 - The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
@@ -253,7 +255,7 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
-- Turn the newly separated planner/tool/guard/memory pieces into a bounded Agent loop: let the planner decide whether to run one tool, chain the next obvious tool, ask for clarification, or stop, while keeping the existing middle derivation content intact.
+- Decide whether to enable automatic multi-tool chaining in the bounded Agent loop. The runtime now records next-step decisions, but it intentionally does not auto-run additional model calls yet; the next increment can add an explicit opt-in for chaining.
 - Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - Add a short production release checklist/runbook so future deploys repeat the same path: local tests, build, production persistence smoke, deployed-app smoke, and cleanup of any smoke projects.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.

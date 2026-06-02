@@ -35,6 +35,10 @@ export const RESEARCH_WORKFLOW_STEP_DEFINITIONS = [
     id: "summarize_research_output",
     label: "整理结构化结果",
   },
+  {
+    id: "decide_next_agent_action",
+    label: "决定下一步",
+  },
 ] as const;
 
 export function attachAgentRun(
@@ -148,6 +152,21 @@ function createStepSummary(stepId: string, step?: WorkflowStepResult) {
     return output?.summary ?? "已整理 Agent 输出。";
   }
 
+  if (stepId === "decide_next_agent_action") {
+    const output = step.output as
+      | {
+          decision?: {
+            kind?: string;
+            reason?: string;
+          };
+        }
+      | undefined;
+    const decision = output?.decision;
+    return decision?.reason
+      ? `${formatDecisionKind(decision.kind)}：${decision.reason}`
+      : "已完成下一步决策。";
+  }
+
   return "步骤已完成。";
 }
 
@@ -227,6 +246,27 @@ function createStepDetails(
     ]);
   }
 
+  if (stepId === "decide_next_agent_action") {
+    const output = step.output as
+      | {
+          decision?: {
+            kind?: string;
+            reason?: string;
+            nextAction?: string;
+            nextTool?: string;
+          };
+        }
+      | undefined;
+    const decision = output?.decision;
+
+    return compactDetails([
+      { label: "决策", value: formatDecisionKind(decision?.kind) },
+      { label: "原因", value: decision?.reason },
+      { label: "下一工具", value: decision?.nextTool },
+      { label: "下一动作", value: decision?.nextAction },
+    ]);
+  }
+
   return [];
 }
 
@@ -272,4 +312,17 @@ function summarizeText(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= 96) return normalized;
   return `${normalized.slice(0, 96)}...`;
+}
+
+function formatDecisionKind(kind?: string) {
+  switch (kind) {
+    case "suggest_next_tool":
+      return "建议下一工具";
+    case "ask_user":
+      return "等待用户";
+    case "stop":
+      return "停止";
+    default:
+      return "下一步决策";
+  }
 }

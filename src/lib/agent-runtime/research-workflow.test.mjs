@@ -32,7 +32,12 @@ test("research workflow records a Mastra agent run around generation", async () 
   assert.equal(result.agentRun.status, "success");
   assert.deepEqual(
     result.agentRun.steps.map((step) => step.id),
-    ["plan_research_action", "run_research_generation", "summarize_research_output"]
+    [
+      "plan_research_action",
+      "run_research_generation",
+      "summarize_research_output",
+      "decide_next_agent_action",
+    ]
   );
   assert.match(
     result.agentRun.steps[0].summary ?? "",
@@ -40,13 +45,19 @@ test("research workflow records a Mastra agent run around generation", async () 
   );
   assert.deepEqual(
     result.agentRun.steps.map((step) => step.details?.length > 0),
-    [true, true, true]
+    [true, true, true, true]
   );
   assert.match(
     result.agentRun.steps[1].details
       ?.map((detail) => `${detail.label}:${detail.value}`)
       .join("\n") ?? "",
     /调用来源|结果阶段/
+  );
+  assert.match(
+    result.agentRun.steps[3].details
+      ?.map((detail) => `${detail.label}:${detail.value}`)
+      .join("\n") ?? "",
+    /决策|原因/
   );
   assert.equal(
     result.project.researchSession?.agentRuns?.at(-1)?.id,

@@ -47,10 +47,32 @@ export const workflowGenerationSchema = z.object({
   response: z.custom<ResearchGenerationResponse>(),
 });
 
-export const workflowOutputSchema = z.object({
+export const workflowSummarySchema = z.object({
   plan: workflowPlanSchema,
   response: z.custom<ResearchGenerationResponse>(),
   summary: z.string(),
 });
 
+export const workflowDecisionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("suggest_next_tool"),
+    reason: z.string(),
+    nextAction: z.string(),
+    nextTool: z.string(),
+  }),
+  z.object({
+    kind: z.literal("ask_user"),
+    reason: z.string(),
+  }),
+  z.object({
+    kind: z.literal("stop"),
+    reason: z.string(),
+  }),
+]);
+
+export const workflowOutputSchema = workflowSummarySchema.extend({
+  decision: workflowDecisionSchema,
+});
+
+export type ResearchWorkflowSummary = z.infer<typeof workflowSummarySchema>;
 export type ResearchWorkflowOutput = z.infer<typeof workflowOutputSchema>;

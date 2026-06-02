@@ -6,6 +6,7 @@ import {
   workflowInputSchema,
   workflowOutputSchema,
 } from "../schemas/research-agent-schemas.ts";
+import { createDecideNextAgentActionStep } from "../steps/decide-next-agent-action.ts";
 import { createPlanResearchActionStep } from "../steps/plan-research-action.ts";
 import { createRunResearchGenerationStep } from "../steps/run-research-generation.ts";
 import { createSummarizeResearchOutputStep } from "../steps/summarize-research-output.ts";
@@ -23,5 +24,6 @@ export function createResearchWorkflow(client?: ResearchCompletionClient) {
     .then(createPlanResearchActionStep())
     .then(createRunResearchGenerationStep(client))
     .then(createSummarizeResearchOutputStep())
+    .then(createDecideNextAgentActionStep())
     .commit();
 }
