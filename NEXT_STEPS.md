@@ -183,15 +183,36 @@ Pass criteria:
 - The tab exposes the Mastra workflow identity, action, status, step list, structured details, and failure reason area when applicable.
 - No unhandled console error appears during the create-project flow.
 
+## Production Readiness
+
+Current production MVP shape:
+
+- Clerk protects `/research`, `/projects`, and `/api` routes outside development guest mode.
+- Neon/Drizzle is the production project store when `DATABASE_URL` is configured.
+- Local `.paperforge-dev/projects.json` storage is development-only and activates only in development guest mode without `DATABASE_URL`.
+- Project assets are stored in the `projects` table. The `research_session` JSONB field carries messages, pending decisions, asset state, and `agentRuns`, so Agent traces persist with the project for the current MVP.
+- Runtime model calls go through `/api/research/generate`, protected by user auth and the existing in-memory rate limiter.
+
+上线前必须稳定的事项:
+
+- Verify a production-like Neon database path end to end with `DATABASE_URL`, `npm run db:push`, project create/update/delete, refresh restore, and Agent trace persistence.
+- Keep dev fixtures out of the production user flow. `npm run dev:seed:simple-equilibrium` and `npm run dev:seed:implicit-system` are regression tools, not product entry points.
+- Confirm required deployment environment variables: Clerk keys, `DATABASE_URL`, and at least one provider key following the code fallback order `DEEPSEEK_API_KEY` -> `OPENAI_COMPATIBLE_API_KEY` -> `MIMO_API_KEY` -> `OPENAI_API_KEY`.
+- Decide whether the in-memory rate limiter is acceptable for the first public demo; for multi-instance production it should move to durable storage.
+- Decide whether embedded `researchSession.agentRuns` is enough for the MVP. A later production observability upgrade can split Agent runs into a separate table, but the current JSONB strategy is acceptable for a small launch.
+- Run browser smoke checks for both the normal generated-project flow and the two dev fixtures before each release candidate.
+
 ## Next Priority
 
 1. Keep polishing the visible Agent product loop: project persistence, trace readability, middle derivation preservation, right-side assets, and repeatable browser smoke checks.
-2. Use the implicit-system fixture for future browser regression checks whenever right-side assets, middle derivation, inline Agent trace, or property-analysis UI changes.
-3. Keep the symbolic solver focused on simple, well-structured equilibrium examples that make the research demo credible.
-4. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
+2. Move from local-only confidence toward production readiness: verify the Neon-backed project path, database migration path, Clerk protection, provider envs, and Agent trace persistence under `DATABASE_URL`.
+3. Use the simple-equilibrium and implicit-system fixtures for future browser regression checks whenever right-side assets, middle derivation, inline Agent trace, or property-analysis UI changes.
+4. Keep the symbolic solver focused on simple, well-structured equilibrium examples that make the research demo credible.
+5. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
 
 Recommended next implementation step:
 
+- Add production-readiness tests and checks around project persistence first: local tests should prove Agent traces survive sanitize/row mapping, then a production-like smoke should verify the same behavior through the API with `DATABASE_URL`.
 - Improve the demo loop before adding more solver depth: make sure saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures remain easy to test and explain.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.

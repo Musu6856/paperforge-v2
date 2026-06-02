@@ -72,6 +72,60 @@ test("sanitizeProjectPayload rejects oversized nested project payloads", () => {
   assert.equal(project, null);
 });
 
+test("sanitizeProjectPayload preserves Agent run traces for project persistence", () => {
+  const project = sanitizeProjectPayload({
+    ...baseProject,
+    researchSession: createSessionWithAgentRun(),
+  });
+
+  const run = project?.researchSession?.agentRuns?.at(-1);
+
+  assert.equal(run?.framework, "mastra");
+  assert.equal(run?.workflowId, "paperforge-research-workflow");
+  assert.equal(run?.action, "solve_equilibrium");
+  assert.equal(run?.steps[0]?.id, "plan_research_action");
+  assert.equal(run?.steps[0]?.details?.[0]?.value, "production persistence");
+});
+
+function createSessionWithAgentRun() {
+  return {
+    phase: "equilibrium",
+    directions: [],
+    messages: [],
+    assetSummary: {
+      confirmedAssumptions: [],
+      utilityFunctions: [],
+      equilibriumStatus: "solved",
+      nextActions: [],
+    },
+    agentRuns: [
+      {
+        id: "agent-run-production-persistence",
+        framework: "mastra",
+        workflowId: "paperforge-research-workflow",
+        action: "solve_equilibrium",
+        status: "success",
+        startedAt: 1710000000000,
+        endedAt: 1710000002500,
+        steps: [
+          {
+            id: "plan_research_action",
+            label: "Plan research action",
+            status: "success",
+            summary: "Plan persisted production run.",
+            details: [
+              {
+                label: "Persistence target",
+                value: "production persistence",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 test("projectFromRow sanitizes legacy model source metadata", () => {
   const project = projectFromRow({
     id: baseProject.id,
@@ -109,6 +163,36 @@ test("projectFromRow sanitizes legacy model source metadata", () => {
     hasBrowserApiKey: true,
   });
   assert.equal("apiKey" in project.modelSource, false);
+});
+
+test("projectFromRow restores Agent run traces from research_session JSONB", () => {
+  const project = projectFromRow({
+    id: baseProject.id,
+    ownerId: "user-dev",
+    createdAt: new Date(baseProject.createdAt),
+    updatedAt: new Date(baseProject.createdAt),
+    rawIdea: baseProject.rawIdea,
+    refinedIdea: baseProject.refinedIdea,
+    projectType: "formal",
+    model: null,
+    researchSession: createSessionWithAgentRun(),
+    modelSource: null,
+    wizardCompleted: true,
+    sections: [],
+    references: [],
+    background: null,
+    literatureAnalyses: [],
+    hotellingModel: null,
+    equilibriumResult: null,
+    propertyAnalyses: [],
+  });
+
+  const run = project.researchSession?.agentRuns?.at(-1);
+
+  assert.equal(run?.framework, "mastra");
+  assert.equal(run?.workflowId, "paperforge-research-workflow");
+  assert.equal(run?.action, "solve_equilibrium");
+  assert.equal(run?.steps[0]?.summary, "Plan persisted production run.");
 });
 
 test("projectFromRow normalizes legacy string symbols in hotelling models", () => {
