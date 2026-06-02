@@ -68,6 +68,97 @@ export function ResearchSidebar({
 }) {
   const router = useRouter();
   const { state, dispatch } = useStore();
+
+  const formalProjects = state.projects.filter(
+    (item) => item.projectType === "formal"
+  );
+  const explorationProjects = state.projects.filter(
+    (item) => item.projectType === "exploration"
+  );
+  const groupedFormalProjects = groupProjectsByDate(formalProjects);
+  const groupedExplorationProjects = groupProjectsByDate(explorationProjects);
+
+  async function handleDeleteProject(targetProject: ResearchProject) {
+    const confirmed = window.confirm(
+      `${copy.deleteConfirmPrefix}“${targetProject.refinedIdea || targetProject.rawIdea}”${copy.deleteConfirmSuffix}`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteProject(targetProject.id);
+      const isDeletingActiveProject = targetProject.id === project.id;
+      if (isDeletingActiveProject) {
+        window.sessionStorage.setItem(
+          DELETING_PROJECT_SESSION_KEY,
+          targetProject.id
+        );
+      }
+      dispatch({ type: "DELETE_PROJECT", payload: targetProject.id });
+      if (isDeletingActiveProject) {
+        router.replace("/research?new=1", { scroll: false });
+        window.setTimeout(() => {
+          window.sessionStorage.removeItem(DELETING_PROJECT_SESSION_KEY);
+        }, 1000);
+      }
+      toast.success(copy.deleteSuccess);
+    } catch (error) {
+      console.error("Failed to delete project", error);
+      toast.error(copy.deleteFailed);
+    }
+  }
+
+  return (
+    <aside className="hidden h-full min-h-0 w-full flex-col border-r border-border/70 bg-background/95 lg:flex">
+      <div className="flex h-14 items-center border-b border-border/70 px-4">
+        <Link href="/" className="font-serif text-base font-semibold">
+          PaperForge
+        </Link>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <NavSection
+          title={copy.formalProjects}
+          groupedProjects={groupedFormalProjects}
+          activeId={project.id}
+          onOpenProject={onOpenProject}
+          onDelete={handleDeleteProject}
+          copy={copy}
+        />
+        <NavSection
+          title={copy.explorations}
+          groupedProjects={groupedExplorationProjects}
+          activeId={project.id}
+          onOpenProject={onOpenProject}
+          onDelete={handleDeleteProject}
+          copy={copy}
+          action={
+            <Button
+              variant={isComposingNewConversation ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs"
+              onClick={onStartNewConversation}
+              title={copy.newConversation}
+            >
+              <MessageSquarePlus className="size-3.5" />
+              {copy.newConversation}
+            </Button>
+          }
+        />
+      </div>
+
+      <SidebarAccountToolbar copy={copy} modelSourceCopy={modelSourceCopy} />
+    </aside>
+  );
+}
+
+export function SidebarAccountToolbar({
+  copy,
+  modelSourceCopy,
+}: {
+  copy: ReturnType<typeof getAppCopy>["sidebar"];
+  modelSourceCopy: ReturnType<typeof getAppCopy>["modelSource"];
+}) {
+  const { dispatch } = useStore();
   const { language, setLanguage } = useAppLanguage();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelSettings, setModelSettings] = useState<ModelSourceSettings>({
@@ -131,44 +222,6 @@ export function ResearchSidebar({
     setProviderHealth(null);
   }
 
-  const formalProjects = state.projects.filter(
-    (item) => item.projectType === "formal"
-  );
-  const explorationProjects = state.projects.filter(
-    (item) => item.projectType === "exploration"
-  );
-  const groupedFormalProjects = groupProjectsByDate(formalProjects);
-  const groupedExplorationProjects = groupProjectsByDate(explorationProjects);
-
-  async function handleDeleteProject(targetProject: ResearchProject) {
-    const confirmed = window.confirm(
-      `${copy.deleteConfirmPrefix}“${targetProject.refinedIdea || targetProject.rawIdea}”${copy.deleteConfirmSuffix}`
-    );
-    if (!confirmed) return;
-
-    try {
-      await deleteProject(targetProject.id);
-      const isDeletingActiveProject = targetProject.id === project.id;
-      if (isDeletingActiveProject) {
-        window.sessionStorage.setItem(
-          DELETING_PROJECT_SESSION_KEY,
-          targetProject.id
-        );
-      }
-      dispatch({ type: "DELETE_PROJECT", payload: targetProject.id });
-      if (isDeletingActiveProject) {
-        router.replace("/research?new=1", { scroll: false });
-        window.setTimeout(() => {
-          window.sessionStorage.removeItem(DELETING_PROJECT_SESSION_KEY);
-        }, 1000);
-      }
-      toast.success(copy.deleteSuccess);
-    } catch (error) {
-      console.error("Failed to delete project", error);
-      toast.error(copy.deleteFailed);
-    }
-  }
-
   async function handleCheckProviderHealth() {
     if (isCheckingProvider) return;
 
@@ -218,212 +271,173 @@ export function ResearchSidebar({
   }
 
   return (
-    <aside className="hidden h-full min-h-0 w-full flex-col border-r border-border/70 bg-background/95 lg:flex">
-      <div className="flex h-14 items-center border-b border-border/70 px-4">
-        <Link href="/" className="font-serif text-base font-semibold">
-          PaperForge
-        </Link>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <NavSection
-          title={copy.formalProjects}
-          groupedProjects={groupedFormalProjects}
-          activeId={project.id}
-          onOpenProject={onOpenProject}
-          onDelete={handleDeleteProject}
-          copy={copy}
-        />
-        <NavSection
-          title={copy.explorations}
-          groupedProjects={groupedExplorationProjects}
-          activeId={project.id}
-          onOpenProject={onOpenProject}
-          onDelete={handleDeleteProject}
-          copy={copy}
-          action={
+    <div className="relative border-t border-border/70 bg-background/95 p-3">
+      {settingsOpen && (
+        <div className="absolute bottom-[calc(100%+0.5rem)] left-3 right-3 z-20 max-h-[min(34rem,calc(100vh-7rem))] overflow-y-auto rounded-lg border border-border/80 bg-card/95 p-3 shadow-lg shadow-black/10 backdrop-blur-sm">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {copy.settingsEyebrow}
+              </p>
+              <h2 className="mt-1 font-serif text-base font-semibold">
+                {copy.workspaceSettings}
+              </h2>
+            </div>
             <Button
-              variant={isComposingNewConversation ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 gap-1.5 px-2 text-xs"
-              onClick={onStartNewConversation}
-              title={copy.newConversation}
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSettingsOpen(false)}
+              title={copy.closeSettings}
             >
-              <MessageSquarePlus className="size-3.5" />
-              {copy.newConversation}
+              <X className="size-4" />
             </Button>
-          }
-        />
-      </div>
+          </div>
 
-      <div className="relative border-t border-border/70 bg-background/95 p-3">
-        {settingsOpen && (
-          <div className="absolute bottom-[calc(100%+0.5rem)] left-3 right-3 z-20 max-h-[min(34rem,calc(100vh-7rem))] overflow-y-auto rounded-lg border border-border/80 bg-card/95 p-3 shadow-lg shadow-black/10 backdrop-blur-sm">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {copy.settingsEyebrow}
-                </p>
-                <h2 className="mt-1 font-serif text-base font-semibold">
-                  {copy.workspaceSettings}
-                </h2>
-              </div>
+          <section className="mb-4 space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Languages className="size-4 text-primary" />
+              {copy.language}
+            </h3>
+            <div className="inline-flex rounded-lg border bg-background p-1">
+              {(["zh", "en"] as AppLanguage[]).map((option) => (
+                <button
+                  key={option}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-xs",
+                    language === option
+                      ? "bg-primary font-medium text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}
+                  type="button"
+                  onClick={() => {
+                    setLanguage(option);
+                    toast.success(copy.languageUpdated, {
+                      description: copy.languageUpdatedDescription,
+                    });
+                  }}
+                >
+                  {getAppLanguageLabel(option)}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <SlidersHorizontal className="size-4 text-primary" />
+                {copy.modelSettings}
+              </h3>
               <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setSettingsOpen(false)}
-                title={copy.closeSettings}
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-[11px]"
+                disabled={isCheckingProvider}
+                onClick={() => void handleCheckProviderHealth()}
               >
-                <X className="size-4" />
+                {isCheckingProvider ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <CircleCheck className="size-3.5" />
+                )}
+                {copy.checkConnection}
               </Button>
             </div>
-
-            <section className="mb-4 space-y-2">
-              <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Languages className="size-4 text-primary" />
-                {copy.language}
-              </h3>
-              <div className="inline-flex rounded-lg border bg-background p-1">
-                {(["zh", "en"] as AppLanguage[]).map((option) => (
-                  <button
-                    key={option}
-                    className={cn(
-                      "rounded-md px-3 py-1 text-xs",
-                      language === option
-                        ? "bg-primary font-medium text-primary-foreground"
-                        : "text-muted-foreground"
-                    )}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(option);
-                      toast.success(copy.languageUpdated, {
-                        description: copy.languageUpdatedDescription,
-                      });
-                    }}
-                  >
-                    {getAppLanguageLabel(option)}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <SlidersHorizontal className="size-4 text-primary" />
-                  {copy.modelSettings}
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 px-2 text-[11px]"
-                  disabled={isCheckingProvider}
-                  onClick={() => void handleCheckProviderHealth()}
-                >
-                  {isCheckingProvider ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <CircleCheck className="size-3.5" />
-                  )}
-                  {copy.checkConnection}
-                </Button>
-              </div>
-              <ProviderHealthInlineStatus
-                settings={modelSettings}
-                result={providerHealth}
-                isChecking={isCheckingProvider}
-                copy={copy}
-              />
-              <ModelSourceSummaryBox
-                title={copy.currentFormWillUse}
-                summary={describeModelSourceForUi(
-                  modelSettings,
-                  providerHealth,
-                  language
-                )}
-              />
-              <ModelSourceConfigurator
-                settings={modelSettings}
-                onSettingsChange={handleModelSettingsChange}
-                compact
-                copy={modelSourceCopy}
-              />
-              <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    resetModelSettings();
+            <ProviderHealthInlineStatus
+              settings={modelSettings}
+              result={providerHealth}
+              isChecking={isCheckingProvider}
+              copy={copy}
+            />
+            <ModelSourceSummaryBox
+              title={copy.currentFormWillUse}
+              summary={describeModelSourceForUi(
+                modelSettings,
+                providerHealth,
+                language
+              )}
+            />
+            <ModelSourceConfigurator
+              settings={modelSettings}
+              onSettingsChange={handleModelSettingsChange}
+              compact
+              copy={modelSourceCopy}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  resetModelSettings();
+                  setSettingsOpen(false);
+                }}
+              >
+                {copy.cancel}
+              </Button>
+              <Button
+                className="gap-1.5"
+                onClick={() => {
+                  try {
+                    const normalized =
+                      normalizeModelSourceSettings(modelSettings);
+                    window.localStorage.setItem(
+                      MODEL_SOURCE_STORAGE_KEY,
+                      JSON.stringify(normalized)
+                    );
+                    markModelSourceSetupCompleted(window.localStorage);
+                    window.dispatchEvent(
+                      new Event(MODEL_SOURCE_CONFIGURED_EVENT)
+                    );
+                    setActiveModelSettings(normalized);
+                    dispatch({
+                      type: "UPDATE_PROJECT",
+                      payload: {
+                        modelSource: getModelSourceMetadata(normalized),
+                      },
+                    });
+                    toast.success(copy.modelSaved, {
+                      description: copy.modelSavedDescription,
+                    });
                     setSettingsOpen(false);
-                  }}
-                >
-                  {copy.cancel}
-                </Button>
-                <Button
-                  className="gap-1.5"
-                  onClick={() => {
-                    try {
-                      const normalized =
-                        normalizeModelSourceSettings(modelSettings);
-                      window.localStorage.setItem(
-                        MODEL_SOURCE_STORAGE_KEY,
-                        JSON.stringify(normalized)
-                      );
-                      markModelSourceSetupCompleted(window.localStorage);
-                      window.dispatchEvent(
-                        new Event(MODEL_SOURCE_CONFIGURED_EVENT)
-                      );
-                      setActiveModelSettings(normalized);
-                      dispatch({
-                        type: "UPDATE_PROJECT",
-                        payload: {
-                          modelSource: getModelSourceMetadata(normalized),
-                        },
-                      });
-                      toast.success(copy.modelSaved, {
-                        description: copy.modelSavedDescription,
-                      });
-                      setSettingsOpen(false);
-                    } catch (error) {
-                      toast.error(copy.modelConfigError, {
-                        description:
-                          error instanceof Error
-                            ? error.message
-                            : copy.modelConfigFallbackError,
-                      });
-                    }
-                  }}
-                >
-                  <Check className="size-4" />
-                  {copy.save}
-                </Button>
-              </div>
-            </section>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <UserButton />
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium">
-                {activeModelSummary.label}
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {activeModelSummary.detail}
-              </p>
+                  } catch (error) {
+                    toast.error(copy.modelConfigError, {
+                      description:
+                        error instanceof Error
+                          ? error.message
+                          : copy.modelConfigFallbackError,
+                    });
+                  }
+                }}
+              >
+                <Check className="size-4" />
+                {copy.save}
+              </Button>
             </div>
-          </div>
-          <Button
-            variant={settingsOpen ? "secondary" : "ghost"}
-            size="icon-sm"
-            onClick={toggleSettings}
-            title={copy.settingsButton}
-          >
-            <Settings className="size-4" />
-          </Button>
+          </section>
         </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <UserButton />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-medium">
+              {activeModelSummary.label}
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {activeModelSummary.detail}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant={settingsOpen ? "secondary" : "ghost"}
+          size="icon-sm"
+          onClick={toggleSettings}
+          title={copy.settingsButton}
+        >
+          <Settings className="size-4" />
+        </Button>
       </div>
-    </aside>
+    </div>
   );
 }
 

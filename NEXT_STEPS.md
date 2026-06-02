@@ -103,6 +103,9 @@ Current scope:
   - the inline Agent trace expanded under the latest assistant message and showed workflow/action/duration plus fixture source, phase, status, and property count;
   - the right-side Agent tab showed `paperforge-research-workflow`, `analyze_properties`, `implicit_system`, and the three fixture trace steps;
   - browser console output had no new errors, only the existing Clerk development-key warning.
+- Fixed the logged-in empty-workspace sidebar regression: both the normal project sidebar and the empty `/research?new=1` sidebar now reuse the same bottom account/settings toolbar, so model settings remain reachable before a project exists.
+- Added a regression test for the empty research sidebar account/settings controls.
+- Browser-smoked the empty local workspace on `http://localhost:3000/research?new=1`: the left sidebar showed the model summary and `设置` button, and opening settings showed `工作台设置`, language controls, and model settings. In the unauthenticated local browser, Clerk's `UserButton` itself renders empty; after login it uses the same toolbar slot.
 
 ## Verification Commands
 
@@ -121,7 +124,8 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 235/235.
+- `node --test "src/**/*.test.mjs"` passed, 244/244.
+- `node --test src\components\research-workspace\research-sidebar-empty-state.test.mjs` passed.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.

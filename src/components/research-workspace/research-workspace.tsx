@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { ChatPanel } from "./chat-panel";
 import { ResearchAssetsPanel } from "./research-assets-panel";
-import { ResearchSidebar } from "./research-sidebar";
+import { ResearchSidebar, SidebarAccountToolbar } from "./research-sidebar";
 import { ResearchWorkspaceShell } from "./research-workspace-shell";
 import {
   createProject,
@@ -525,7 +525,10 @@ export function ResearchWorkspace({
             modelSourceCopy={copy.modelSource}
           />
         ) : (
-          <ResearchEmptySidebar />
+          <ResearchEmptySidebar
+            copy={copy.sidebar}
+            modelSourceCopy={copy.modelSource}
+          />
         )
       }
       center={
@@ -820,7 +823,13 @@ function NewConversationEmptyState({
   );
 }
 
-function ResearchEmptySidebar() {
+function ResearchEmptySidebar({
+  copy,
+  modelSourceCopy,
+}: {
+  copy: ReturnType<typeof getAppCopy>["sidebar"];
+  modelSourceCopy: ReturnType<typeof getAppCopy>["modelSource"];
+}) {
   return (
     <aside className="flex h-full min-h-0 min-w-0 flex-col border-r bg-muted/45">
       <div className="flex h-14 items-center border-b px-4">
@@ -836,6 +845,7 @@ function ResearchEmptySidebar() {
           </p>
         </section>
       </div>
+      <SidebarAccountToolbar copy={copy} modelSourceCopy={modelSourceCopy} />
     </aside>
   );
 }
