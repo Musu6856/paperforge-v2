@@ -198,6 +198,26 @@ function createPlatformFocs(model: HotellingModel, platform: "A" | "B") {
   );
 }
 
+function createUtilityEquationLines(model: HotellingModel) {
+  return model.utilityFunctions.map((entry) => entry.expression.trim());
+}
+
+function createProfitEquationLines(model: HotellingModel) {
+  return model.profitFunctions.map((entry) => entry.expression.trim());
+}
+
+function createSuppliedEquationBlock(model: HotellingModel) {
+  const utilities = createUtilityEquationLines(model);
+  const profits = createProfitEquationLines(model);
+
+  return [
+    "Supplied utility equations:",
+    ...utilities.map((equation) => `- ${equation}`),
+    "Supplied profit equations:",
+    ...profits.map((equation) => `- ${equation}`),
+  ].join("\n");
+}
+
 function createReactionFunctionEquilibriumResult(
   model: HotellingModel,
   reasons: string[]
@@ -206,6 +226,8 @@ function createReactionFunctionEquilibriumResult(
   const decisionsB = getPlatformDecisionVariables(model, "B");
   const zA = decisionsA.join(",");
   const zB = decisionsB.join(",");
+  const profitEquations = createProfitEquationLines(model);
+  const equationBlock = createSuppliedEquationBlock(model);
 
   return {
     status: "reaction_function",
@@ -217,6 +239,7 @@ function createReactionFunctionEquilibriumResult(
       "Represent equilibrium as the fixed point of the two platform reaction functions, then state the symbolic conditions needed to narrow it to closed form.",
     ],
     focs: [
+      ...profitEquations,
       ...createPlatformFocs(model, "A"),
       ...createPlatformFocs(model, "B"),
       "z_A=R_A(z_B;\\theta)",
@@ -232,9 +255,16 @@ function createReactionFunctionEquilibriumResult(
       `R_A(${zB};\\theta)=\\arg\\max_{${zA}}\\Pi_A(${zA},${zB};\\theta),\\quad ` +
       `R_B(${zA};\\theta)=\\arg\\max_{${zB}}\\Pi_B(${zA},${zB};\\theta)`,
     derivation:
-      "The model preserves enough Hotelling demand structure to derive reaction functions, but the current profit equations are not the canonical commission-subsidy form. PaperForge therefore reports the symbolic best-response system instead of fabricating a closed form. To narrow this to a closed-form equilibrium, concretize any remaining mechanism terms, substitute the demand shares into both profit functions, solve the listed FOCs jointly, and verify the Hessian and interior-share conditions.",
+      "The model preserves enough Hotelling demand structure to derive reaction functions, but the current profit equations are not the canonical commission-subsidy form. PaperForge therefore reports the symbolic best-response system instead of fabricating a closed form. The supplied concrete equations are carried into the scaffold so the next narrowing pass differentiates the actual mechanism terms:\n\n" +
+      `${equationBlock}\n\n` +
+      "To narrow this to a closed-form equilibrium, substitute the demand shares into both profit functions, solve the listed FOCs jointly, and verify the Hessian and interior-share conditions.",
     code: `# reaction-function symbolic scaffold
 import sympy as sp
+
+${equationBlock
+  .split("\n")
+  .map((line) => `# ${line}`)
+  .join("\n")}
 
 # 1. Define demand shares from the Hotelling indifference system.
 # 2. Substitute demand into Pi_A and Pi_B from the current model.
@@ -255,6 +285,12 @@ function createImplicitSystemEquilibriumResult(
 ): EquilibriumResult {
   const decisions = getStrategicDecisionVariables(model);
   const z = [...decisions, "n_A^B", "n_B^B", "n_A^S", "n_B^S"].join(",");
+  const utilityEquations = createUtilityEquationLines(model);
+  const profitEquations = createProfitEquationLines(model);
+  const equationBlock = createSuppliedEquationBlock(model);
+  const hasUnresolvedMechanism = reasons.some((reason) =>
+    /unresolved mechanism function/i.test(reason)
+  );
 
   return {
     status: "implicit_system",
@@ -266,6 +302,8 @@ function createImplicitSystemEquilibriumResult(
       "Use the implicit-function theorem to identify comparative statics once the active region and Jacobian conditions are verified.",
     ],
     focs: [
+      ...utilityEquations,
+      ...profitEquations,
       ...createPlatformFocs(model, "A"),
       ...createPlatformFocs(model, "B"),
       "U_A^B-U_B^B=0",
@@ -276,13 +314,22 @@ function createImplicitSystemEquilibriumResult(
       ...reasons,
       "Feasibility: demand shares and participation variables stay in [0,1].",
       "Regularity: \\det J_zF(z^*,\\theta)\\ne0 on the maintained active region.",
-      "Narrowing requirement: replace unresolved mechanism functions with concrete symbolic equations before asserting closed form.",
+      hasUnresolvedMechanism
+        ? "Narrowing requirement: replace unresolved mechanism functions with concrete symbolic equations before asserting closed form."
+        : "Narrowing requirement: use the supplied concrete equations to select the active region and test whether the implicit system admits a closed form.",
     ],
     closedForm: `F(z,\\theta)=0,\\quad z=(${z}),\\quad \\det J_zF(z^*,\\theta)\\ne0`,
     derivation:
-      "The current model is structured enough to preserve a symbolic equilibrium object, but not enough to claim a closed-form solution. PaperForge therefore records the implicit system F(z,\\theta)=0. This keeps the derivation inspectable while making the next narrowing step explicit: concretize mechanism functions, select the active constraint region, compute J_zF, and only then solve or sign comparative statics through dz^*/d\\theta=-J_zF^{-1}F_\\theta.",
+      "The current model is structured enough to preserve a symbolic equilibrium object, but not enough to claim a closed-form solution. PaperForge therefore records the implicit system F(z,\\theta)=0 and carries the supplied concrete equations into the system definition:\n\n" +
+      `${equationBlock}\n\n` +
+      "This keeps the derivation inspectable while making the next narrowing step explicit: select the active constraint region, compute J_zF, and only then solve or sign comparative statics through dz^*/d\\theta=-J_zF^{-1}F_\\theta.",
     code: `# implicit-system symbolic scaffold
 import sympy as sp
+
+${equationBlock
+  .split("\n")
+  .map((line) => `# ${line}`)
+  .join("\n")}
 
 # Build F(z, theta) from:
 # - buyer and seller indifference equations

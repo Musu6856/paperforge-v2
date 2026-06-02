@@ -127,6 +127,92 @@ test("symbolic solver returns reaction-function result for noncanonical profit e
   assert.match(result.conditions.join("\n"), /unsupported profit function/i);
 });
 
+test("symbolic solver carries concrete mechanism profit terms into reaction scaffolds", () => {
+  const result = solveSymbolicHotellingEquilibrium({
+    ...canonicalModel,
+    timing: [
+      {
+        id: "stage-quality",
+        order: 1,
+        name: "platform quality and pricing",
+        decisions: ["\\tau_A", "\\tau_B", "a_A", "a_B"],
+      },
+    ],
+    profitFunctions: [
+      {
+        ...canonicalModel.profitFunctions[0],
+        expression:
+          "\\Pi_A = \\tau_A q n_A^S n_A^B + \\rho a_A n_A^B - \\frac{c a_A^2}{2}",
+      },
+      {
+        ...canonicalModel.profitFunctions[1],
+        expression:
+          "\\Pi_B = \\tau_B q n_B^S n_B^B + \\rho a_B n_B^B - \\frac{c a_B^2}{2}",
+      },
+    ],
+  });
+
+  const combined = [
+    result.focs.join("\n"),
+    result.derivation,
+    result.code,
+  ].join("\n");
+
+  assert.equal(result.status, "reaction_function");
+  assert.match(combined, /\\rho a_A n_A\^B/);
+  assert.match(combined, /\\frac\{c a_B\^2\}\{2\}/);
+  assert.match(result.focs.join("\n"), /\\partial \\Pi_A.*a_A/);
+  assert.match(result.focs.join("\n"), /\\partial \\Pi_B.*a_B/);
+});
+
+test("symbolic solver carries concrete utility and profit equations into implicit systems", () => {
+  const result = solveSymbolicHotellingEquilibrium({
+    ...canonicalModel,
+    timing: [
+      {
+        id: "stage-quality",
+        order: 1,
+        name: "platform quality and pricing",
+        decisions: ["\\tau_A", "\\tau_B", "a_A", "a_B"],
+      },
+    ],
+    utilityFunctions: canonicalModel.utilityFunctions.map((entry) =>
+      entry.side === "consumer"
+        ? {
+            ...entry,
+            expression: entry.expression
+              .replace("s_A", "\\beta a_A")
+              .replace("s_B", "\\beta a_B"),
+          }
+        : entry
+    ),
+    profitFunctions: [
+      {
+        ...canonicalModel.profitFunctions[0],
+        expression:
+          "\\Pi_A = \\tau_A q n_A^S n_A^B - \\frac{c a_A^2}{2}",
+      },
+      {
+        ...canonicalModel.profitFunctions[1],
+        expression:
+          "\\Pi_B = \\tau_B q n_B^S n_B^B - \\frac{c a_B^2}{2}",
+      },
+    ],
+  });
+
+  const combined = [
+    result.focs.join("\n"),
+    result.derivation,
+    result.code,
+  ].join("\n");
+
+  assert.equal(result.status, "implicit_system");
+  assert.match(combined, /\\beta a_A/);
+  assert.match(combined, /\\frac\{c a_B\^2\}\{2\}/);
+  assert.doesNotMatch(result.conditions.join("\n"), /unresolved mechanism function/i);
+  assert.match(result.closedForm, /F\(z,\\theta\)=0/);
+});
+
 test("symbolic solver still fails for models without two supported platforms", () => {
   const result = solveSymbolicHotellingEquilibrium({
     ...canonicalModel,

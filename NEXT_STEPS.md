@@ -79,6 +79,8 @@ Current scope:
   - the right-side Agent tab showed `paperforge-research-workflow`, action, duration, structured step details, provider/fallback source, result phase, asset counts, and assistant-message summary;
   - no new browser console errors appeared during the smoke check; only the existing Clerk development-key warning was present.
 - Rechecked the `implicit_system` path at the code level because no existing local browser project had that status: the targeted research-session, research-flow, generation-result, and symbolic-solver tests passed 43/43.
+- `plan_research_action` and `summarize_research_output` should stay deterministic trace steps for now: they are cheap, stable, product-visible metadata and should not replace or hide the middle derivation text with extra model calls.
+- The symbolic solver now carries supplied concrete utility/profit equations into `reaction_function` and `implicit_system` scaffolds. Concrete mechanism terms such as quality effort revenue/cost now appear in the FOC list, derivation text, and SymPy scaffold instead of being reduced to a generic `F(z,\theta)=0` placeholder. It still returns `reaction_function` or `implicit_system` until a closed form is actually proven.
 
 ## Verification Commands
 
@@ -97,7 +99,7 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 229/229.
+- `node --test "src/**/*.test.mjs"` passed, 231/231.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
@@ -153,13 +155,14 @@ Pass criteria:
 
 ## Next Priority
 
-1. Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should stay deterministic trace steps or become model-backed planning/summarization calls.
-2. Continue the symbolic equilibrium milestone beyond the current typed scaffolds.
-3. Browser-smoke a real `implicit_system` project once a local record with that status exists, or create one intentionally in a separate test pass.
+1. Add a controlled local/browser fixture for an `implicit_system` project so the right-side assets, middle derivation, inline Agent trace, and property-analysis path can be smoke-tested without spending a provider call.
+2. Continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
+3. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
 
 Recommended next implementation step:
 
-- Add real symbolic narrowing for explicit mechanism equations after the model includes concrete utility, revenue, and cost terms. Keep returning `reaction_function` or `implicit_system` until the solver can prove a closed form.
+- Add a controlled local/browser fixture for an `implicit_system` project so the right-side assets, middle derivation, inline Agent trace, and property-analysis path can be smoke-tested without spending a provider call.
+- Then continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
 
 ## Boundaries
