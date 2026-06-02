@@ -9,8 +9,10 @@ import type {
   ResearchGenerationRequest,
   ResearchGenerationResponse,
 } from "../../research-generation/types.ts";
+import { PAPERFORGE_RESEARCH_AGENT } from "../agents/research-agent.ts";
 
-export const PAPERFORGE_RESEARCH_WORKFLOW_ID = "paperforge-research-workflow";
+export const PAPERFORGE_RESEARCH_WORKFLOW_ID =
+  PAPERFORGE_RESEARCH_AGENT.workflowId;
 
 export type WorkflowStepResult = {
   status: AgentRunStepStatus | string;
@@ -159,19 +161,42 @@ function createStepDetails(
     const output = step.output as
       | {
           label?: string;
+          selectedTool?: string;
           actionPlan?: {
             objective?: string;
             expectedOutput?: string;
             executionMode?: string;
+          };
+          memory?: {
+            phase?: string;
+            hasModel?: boolean;
+            hasEquilibrium?: boolean;
+            propertyAnalysisCount?: number;
+          };
+          guard?: {
+            canRunRequestedAction?: boolean;
+            reason?: string;
           };
         }
       | undefined;
 
     return compactDetails([
       { label: "动作", value: output?.label },
+      { label: "工具", value: output?.selectedTool },
       { label: "计划", value: output?.actionPlan?.objective },
       { label: "预期输出", value: output?.actionPlan?.expectedOutput },
       { label: "执行方式", value: output?.actionPlan?.executionMode },
+      {
+        label: "上下文",
+        value: output?.memory
+          ? `阶段 ${output.memory.phase ?? "unknown"}；模型 ${
+              output.memory.hasModel ? "有" : "无"
+            }；均衡 ${output.memory.hasEquilibrium ? "有" : "无"}；性质 ${
+              output.memory.propertyAnalysisCount ?? 0
+            } 项`
+          : undefined,
+      },
+      { label: "继续判断", value: output?.guard?.reason },
     ]);
   }
 

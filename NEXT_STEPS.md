@@ -64,13 +64,18 @@ Current scope:
 - `generateSymbolicEquilibrium` is wired through the deterministic solver, and property analysis is allowed for `solved`, `reaction_function`, and `implicit_system` while still blocking `symbolic_failure`.
 - Provider parsing, provider fallback attachment, local fallback persistence, right-side patch application, flow labels, and workbench status labels now understand `reaction_function` and `implicit_system`.
 - The Mastra Agent runtime has been split into a more standard structure under `src/lib/agent-runtime/`:
-  - `workflows/research-workflow.ts` owns the Mastra workflow;
-  - `steps/` owns the three workflow steps and their schemas;
-  - `tools/research-generation-tool.ts` wraps the structured research generator;
-  - `traces/research-trace.ts` owns trace labels, summaries, and run attachment.
+  - `agents/research-agent.ts` owns the Agent identity, goal, guardrails, and stop-condition copy;
+  - `planners/research-planner.ts` turns the requested research action plus project context into a concrete action plan;
+  - `executors/research-agent-loop.ts` owns the public `runResearchAgentWorkflow` execution path and run attachment;
+  - `tools/` contains the structured research-generation tool wrapper and the Agent tool registry;
+  - `memory/research-memory.ts` snapshots the current project/session context for planning;
+  - `guards/research-guards.ts` records whether the current context is sufficient for the requested action;
+  - `schemas/research-agent-schemas.ts` owns the workflow input/plan/output schemas;
+  - `workflows/research-workflow.ts` owns the Mastra workflow shell;
+  - `traces/research-trace.ts` owns trace labels, summaries, step details, and run attachment.
 - The compatibility entry `src/lib/agent-runtime/research-workflow.ts` still re-exports `runResearchAgentWorkflow`, so the API route and existing tests do not need import changes.
 - Agent trace output now carries structured step details, not only step names:
-  - `plan_research_action` records the local plan, expected output, and execution mode;
+  - `plan_research_action` records the selected tool, local plan, expected output, execution mode, memory snapshot, and guard decision;
   - `run_research_generation` records whether the result came from the provider or fallback, the resulting phase, asset status/counts, pending patch summary, and assistant-message summary;
   - `summarize_research_output` records the final readable summary, resulting phase, and next pending action.
 - The right-side Agent tab and the inline Agent trace under the latest assistant message both display these step summaries/details without altering the assistant's main derivation text.
@@ -130,7 +135,8 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 245/245.
+- `node --test "src/**/*.test.mjs"` passed, 246/246.
+- `node --test src\lib\agent-runtime\research-workflow.test.mjs src\lib\agent-runtime\run-view.test.mjs` passed, 5/5, including the Agent metadata/planner/tool-registry boundary test.
 - `node --test src\components\research-workspace\research-sidebar-empty-state.test.mjs` passed.
 - `node --test src\lib\project-records.test.mjs` passed, 8/8.
 - `npx tsc --noEmit` passed.
@@ -247,6 +253,7 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
+- Turn the newly separated planner/tool/guard/memory pieces into a bounded Agent loop: let the planner decide whether to run one tool, chain the next obvious tool, ask for clarification, or stop, while keeping the existing middle derivation content intact.
 - Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - Add a short production release checklist/runbook so future deploys repeat the same path: local tests, build, production persistence smoke, deployed-app smoke, and cleanup of any smoke projects.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.

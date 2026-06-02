@@ -1,4 +1,6 @@
+export { PAPERFORGE_RESEARCH_AGENT } from "./agents/research-agent.ts";
 export { runResearchAgentWorkflow } from "./executors/research-agent-loop.ts";
+export { planResearchAction } from "./planners/research-planner.ts";
 export {
   createResearchWorkflow,
   PAPERFORGE_RESEARCH_WORKFLOW_ID,

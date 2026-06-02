@@ -5,7 +5,7 @@ import { runResearchGenerationTool } from "../tools/research-generation-tool.ts"
 import {
   workflowGenerationSchema,
   workflowPlanSchema,
-} from "./research-step-schemas.ts";
+} from "../schemas/research-agent-schemas.ts";
 
 export function createRunResearchGenerationStep(
   client?: ResearchCompletionClient

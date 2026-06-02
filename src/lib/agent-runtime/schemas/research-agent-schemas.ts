@@ -25,6 +25,19 @@ export const workflowPlanSchema = z.object({
   action: z.string(),
   label: z.string(),
   actionPlan: workflowActionPlanSchema,
+  memory: z.object({
+    phase: z.string(),
+    hasProject: z.boolean(),
+    hasModel: z.boolean(),
+    hasEquilibrium: z.boolean(),
+    propertyAnalysisCount: z.number(),
+    recentMessageCount: z.number(),
+  }),
+  guard: z.object({
+    canRunRequestedAction: z.boolean(),
+    reason: z.string(),
+  }),
+  selectedTool: z.string(),
   rawIdea: z.string(),
   request: workflowInputSchema,
 });

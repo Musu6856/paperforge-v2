@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { PAPERFORGE_RESEARCH_AGENT } from "./agents/research-agent.ts";
+import { planResearchAction } from "./planners/research-planner.ts";
 import { runResearchAgentWorkflow } from "./research-workflow.ts";
+import { getResearchAgentToolForAction } from "./tools/research-tool-registry.ts";
+
+test("research agent runtime exposes agent planner and tool registry boundaries", () => {
+  const tool = getResearchAgentToolForAction("discover_directions");
+  const plan = planResearchAction({
+    action: "discover_directions",
+    rawIdea: "research platform competition",
+  });
+
+  assert.equal(PAPERFORGE_RESEARCH_AGENT.id, "paperforge-research-agent");
+  assert.equal(PAPERFORGE_RESEARCH_AGENT.workflowId, "paperforge-research-workflow");
+  assert.equal(tool?.name, "discover_directions");
+  assert.equal(plan.selectedTool, "discover_directions");
+  assert.equal(plan.memory.phase, "new");
+  assert.equal(plan.guard.canRunRequestedAction, true);
+});
 
 test("research workflow records a Mastra agent run around generation", async () => {
   const result = await runResearchAgentWorkflow({

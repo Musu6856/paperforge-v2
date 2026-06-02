@@ -4,7 +4,7 @@ import { createGenerationSummary } from "../traces/research-trace.ts";
 import {
   workflowGenerationSchema,
   workflowOutputSchema,
-} from "./research-step-schemas.ts";
+} from "../schemas/research-agent-schemas.ts";
 
 export function createSummarizeResearchOutputStep() {
   return createStep({
