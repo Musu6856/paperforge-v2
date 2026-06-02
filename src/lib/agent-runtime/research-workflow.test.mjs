@@ -16,6 +16,20 @@ test("research workflow records a Mastra agent run around generation", async () 
     result.agentRun.steps.map((step) => step.id),
     ["plan_research_action", "run_research_generation", "summarize_research_output"]
   );
+  assert.match(
+    result.agentRun.steps[0].summary ?? "",
+    /计划动作|发现研究方向/
+  );
+  assert.deepEqual(
+    result.agentRun.steps.map((step) => step.details?.length > 0),
+    [true, true, true]
+  );
+  assert.match(
+    result.agentRun.steps[1].details
+      ?.map((detail) => `${detail.label}:${detail.value}`)
+      .join("\n") ?? "",
+    /调用来源|结果阶段/
+  );
   assert.equal(
     result.project.researchSession?.agentRuns?.at(-1)?.id,
     result.agentRun.id

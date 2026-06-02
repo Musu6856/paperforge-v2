@@ -457,10 +457,26 @@ function AgentStepDisclosureList({
               <ChevronDown className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
             </div>
           </summary>
-          {step.summary ? (
-            <p className="border-t bg-muted/25 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-              {step.summary}
-            </p>
+          {step.summary || step.details.length > 0 ? (
+            <div className="border-t bg-muted/25 px-3 py-2.5">
+              {step.summary ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {step.summary}
+                </p>
+              ) : null}
+              {step.details.length > 0 ? (
+                <dl className="mt-2 grid gap-2 text-[11px] leading-5 sm:grid-cols-2">
+                  {step.details.map((detail) => (
+                    <div key={`${step.id}-${detail.label}`} className="min-w-0">
+                      <dt className="text-muted-foreground">{detail.label}</dt>
+                      <dd className="mt-0.5 break-words font-medium text-foreground">
+                        {detail.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </div>
           ) : null}
         </details>
       ))}

@@ -1,4 +1,5 @@
 import type {
+  AgentRunStepDetail,
   AgentRunStepStatus,
   AgentRunTrace,
   ResearchSession,
@@ -12,6 +13,7 @@ export type AgentRunStepViewModel = {
   statusLabel: string;
   statusTone: AgentRunStatusTone;
   summary?: string;
+  details: AgentRunStepDetail[];
   durationLabel: string;
   defaultExpanded: boolean;
 };
@@ -84,6 +86,7 @@ export function createAgentRunViewModel(
         statusLabel: formatStepStatus(step.status),
         statusTone: getStepStatusTone(step.status),
         summary: step.summary,
+        details: step.details ?? [],
         durationLabel: formatDuration(step.startedAt, step.endedAt, now),
         defaultExpanded: step.status === "failed",
       })),

@@ -62,6 +62,11 @@ Current scope:
   - `tools/research-generation-tool.ts` wraps the structured research generator;
   - `traces/research-trace.ts` owns trace labels, summaries, and run attachment.
 - The compatibility entry `src/lib/agent-runtime/research-workflow.ts` still re-exports `runResearchAgentWorkflow`, so the API route and existing tests do not need import changes.
+- Agent trace output now carries structured step details, not only step names:
+  - `plan_research_action` records the local plan, expected output, and execution mode;
+  - `run_research_generation` records whether the result came from the provider or fallback, the resulting phase, asset status/counts, pending patch summary, and assistant-message summary;
+  - `summarize_research_output` records the final readable summary, resulting phase, and next pending action.
+- The right-side Agent tab and the inline Agent trace under the latest assistant message both display these step summaries/details without altering the assistant's main derivation text.
 - Development no-database project storage now persists to `.paperforge-dev/projects.json`, so local projects survive browser refreshes and dev server restarts.
 - The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
 - The center chat composer now submits on plain Enter, keeps Shift+Enter for multiline drafts, and avoids submitting while IME composition is active.
@@ -120,9 +125,9 @@ Steps:
 3. Wait for navigation to `/research/<project-id>` and for the right asset pane to populate directions.
 4. Click the right-side `Agent` asset tab.
    - If Clerk's keyless prompt overlaps the lower-right app area, collapse it first so it does not intercept tab clicks.
-5. Confirm the Agent tab shows the latest run status, workflow id, action, duration, and execution steps.
+5. Confirm the Agent tab shows the latest run status, workflow id, action, duration, execution steps, and structured step details.
 6. Confirm the expected Mastra steps are visible: `规划研究动作`, `执行研究生成`, and `整理结构化结果`.
-7. If generation falls back because no model key is configured, confirm the Agent run still completes and the step summary reports `source=fallback`.
+7. If generation falls back because no model key is configured, confirm the Agent run still completes and the step details report `调用来源: 本地 fallback`.
 8. Check browser console output for unexpected errors.
 
 Pass criteria:
@@ -130,23 +135,24 @@ Pass criteria:
 - A project is created and saved in the local development project store.
 - After refreshing the browser, local project history remains available when running without `DATABASE_URL`.
 - The `Agent` tab is reachable without collapsing or resizing the right pane.
-- The tab exposes the Mastra workflow identity, action, status, step list, and failure reason area when applicable.
+- The tab exposes the Mastra workflow identity, action, status, step list, structured details, and failure reason area when applicable.
 - No unhandled console error appears during the create-project flow.
 
 ## Next Priority
 
-1. Finish verification for the current branch, then commit this checkpoint.
-2. Browser-smoke the local research flow after the commit, especially:
+1. Browser-smoke the enhanced Agent trace UI after the commit, especially:
    - local project persistence after refresh;
    - middle conversation detailed process display;
-   - right-side Agent trace;
+   - right-side Agent trace structured details;
+   - inline Agent trace under the latest assistant message;
    - `implicit_system` property-analysis path for non-default directions.
+2. Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should stay deterministic trace steps or become model-backed planning/summarization calls.
 3. Continue the symbolic equilibrium milestone beyond the current typed scaffolds.
 
 Recommended next implementation step:
 
 - Add real symbolic narrowing for explicit mechanism equations after the model includes concrete utility, revenue, and cost terms. Keep returning `reaction_function` or `implicit_system` until the solver can prove a closed form.
-- Decide whether the Mastra `plan_research_action` and `summarize_research_output` steps should remain deterministic trace steps or become model-backed planning/summarization steps. Their current short durations are expected because they are deterministic wrappers, not separate LLM calls.
+- If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
 
 ## Boundaries
 

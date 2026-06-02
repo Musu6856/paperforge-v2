@@ -15,9 +15,16 @@ export const workflowInputSchema = z.custom<ResearchGenerationRequest>(
     )
 );
 
+export const workflowActionPlanSchema = z.object({
+  objective: z.string(),
+  expectedOutput: z.string(),
+  executionMode: z.string(),
+});
+
 export const workflowPlanSchema = z.object({
   action: z.string(),
   label: z.string(),
+  actionPlan: workflowActionPlanSchema,
   rawIdea: z.string(),
   request: workflowInputSchema,
 });

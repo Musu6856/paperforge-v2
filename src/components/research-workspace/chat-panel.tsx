@@ -191,14 +191,33 @@ function AgentRunInlineTrace({
             {run.steps.map((step) => (
               <div
                 key={step.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[11px]"
+                className="px-2 py-1.5 text-[11px]"
               >
-                <span className="truncate font-medium text-foreground">
-                  {step.label}
-                </span>
-                <span className="text-muted-foreground">
-                  {step.statusLabel} · {step.durationLabel}
-                </span>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <span className="truncate font-medium text-foreground">
+                    {step.label}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {step.statusLabel} · {step.durationLabel}
+                  </span>
+                </div>
+                {step.summary ? (
+                  <p className="mt-1 line-clamp-2 leading-5 text-muted-foreground">
+                    {step.summary}
+                  </p>
+                ) : null}
+                {step.details.length > 0 ? (
+                  <dl className="mt-1 grid gap-x-3 gap-y-1 leading-5 text-muted-foreground sm:grid-cols-2">
+                    {step.details.slice(0, 4).map((detail) => (
+                      <div key={`${step.id}-${detail.label}`} className="min-w-0">
+                        <dt className="inline">{detail.label}: </dt>
+                        <dd className="inline break-words font-medium text-foreground">
+                          {detail.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
               </div>
             ))}
           </div>

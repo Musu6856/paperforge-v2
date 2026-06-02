@@ -295,11 +295,17 @@ export type AgentRunStepStatus =
   | "paused"
   | "skipped";
 
+export interface AgentRunStepDetail {
+  label: string;
+  value: string;
+}
+
 export interface AgentRunStepTrace {
   id: string;
   label: string;
   status: AgentRunStepStatus;
   summary?: string;
+  details?: AgentRunStepDetail[];
   startedAt?: number;
   endedAt?: number;
 }

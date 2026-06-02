@@ -31,6 +31,12 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
               label: "Plan research action",
               status: "success",
               summary: "Recognized build_model.",
+              details: [
+                {
+                  label: "计划",
+                  value: "确认模型设定并生成结构化模型资产。",
+                },
+              ],
               startedAt: 2000,
               endedAt: 2100,
             },
@@ -68,6 +74,7 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
       statusLabel: step.statusLabel,
       statusTone: step.statusTone,
       defaultExpanded: step.defaultExpanded,
+      details: step.details,
     })),
     [
       {
@@ -76,6 +83,12 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
         statusLabel: "Completed",
         statusTone: "success",
         defaultExpanded: false,
+        details: [
+          {
+            label: "计划",
+            value: "确认模型设定并生成结构化模型资产。",
+          },
+        ],
       },
       {
         id: "run_research_generation",
@@ -83,6 +96,7 @@ test("agent run view model summarizes the latest Mastra workflow run", () => {
         statusLabel: "Completed",
         statusTone: "success",
         defaultExpanded: false,
+        details: [],
       },
     ]
   );

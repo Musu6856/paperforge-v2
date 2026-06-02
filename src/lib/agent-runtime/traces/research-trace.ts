@@ -1,4 +1,5 @@
 import type {
+  AgentRunStepDetail,
   AgentRunStepStatus,
   AgentRunStepTrace,
   AgentRunTrace,
@@ -62,6 +63,7 @@ export function buildAgentRunSteps(
       startedAt: step?.startedAt,
       endedAt: step?.endedAt,
       summary: createStepSummary(definition.id, step),
+      details: createStepDetails(definition.id, step),
     };
   });
 }
@@ -74,9 +76,9 @@ export function createGenerationSummary(response?: ResearchGenerationResponse) {
   if (!response) return "研究生成未返回结果。";
 
   const phase = response.project.researchSession?.phase ?? "unknown";
-  const source = response.usedFallback ? "fallback" : "provider";
+  const source = response.usedFallback ? "本地 fallback" : "模型 provider";
   const patch = response.assetPatch ? "，包含待审核修改建议" : "";
-  return `生成完成：phase=${phase}, source=${source}${patch}`;
+  return `生成完成：进入 ${phase} 阶段，来源 ${source}${patch}。`;
 }
 
 export function getActionLabel(action: ResearchGenerationRequest["action"]) {
@@ -119,8 +121,17 @@ function createStepSummary(stepId: string, step?: WorkflowStepResult) {
   if (step.status !== "success") return "该步骤尚未完成。";
 
   if (stepId === "plan_research_action") {
-    const output = step.output as { label?: string } | undefined;
-    return `已识别为：${output?.label ?? "研究动作"}`;
+    const output = step.output as
+      | {
+          label?: string;
+          actionPlan?: {
+            objective?: string;
+          };
+        }
+      | undefined;
+    const label = output?.label ?? "研究动作";
+    const objective = output?.actionPlan?.objective;
+    return objective ? `计划动作：${label}；${objective}` : `计划动作：${label}`;
   }
 
   if (stepId === "run_research_generation") {
@@ -136,4 +147,104 @@ function createStepSummary(stepId: string, step?: WorkflowStepResult) {
   }
 
   return "步骤已完成。";
+}
+
+function createStepDetails(
+  stepId: string,
+  step?: WorkflowStepResult
+): AgentRunStepDetail[] {
+  if (!step || step.status !== "success") return [];
+
+  if (stepId === "plan_research_action") {
+    const output = step.output as
+      | {
+          label?: string;
+          actionPlan?: {
+            objective?: string;
+            expectedOutput?: string;
+            executionMode?: string;
+          };
+        }
+      | undefined;
+
+    return compactDetails([
+      { label: "动作", value: output?.label },
+      { label: "计划", value: output?.actionPlan?.objective },
+      { label: "预期输出", value: output?.actionPlan?.expectedOutput },
+      { label: "执行方式", value: output?.actionPlan?.executionMode },
+    ]);
+  }
+
+  if (stepId === "run_research_generation") {
+    const output = step.output as
+      | { response?: ResearchGenerationResponse }
+      | undefined;
+    return createGenerationDetails(output?.response);
+  }
+
+  if (stepId === "summarize_research_output") {
+    const output = step.output as
+      | {
+          summary?: string;
+          response?: ResearchGenerationResponse;
+        }
+      | undefined;
+    const response = output?.response;
+    const phase = response?.project.researchSession?.phase;
+    const pendingKind =
+      response?.project.researchSession?.assetSummary.pendingDecision?.kind ??
+      "无";
+
+    return compactDetails([
+      { label: "输出摘要", value: output?.summary },
+      { label: "结果阶段", value: phase },
+      { label: "下一动作", value: pendingKind },
+    ]);
+  }
+
+  return [];
+}
+
+function createGenerationDetails(
+  response?: ResearchGenerationResponse
+): AgentRunStepDetail[] {
+  if (!response) return [];
+
+  const phase = response.project.researchSession?.phase;
+  const source = response.usedFallback ? "本地 fallback" : "模型 provider";
+  const equilibriumStatus = response.project.equilibriumResult?.status;
+  const propertyCount = response.project.propertyAnalyses?.length;
+  const patchSummary = response.assetPatch?.summary;
+
+  return compactDetails([
+    { label: "调用来源", value: source },
+    { label: "结果阶段", value: phase },
+    { label: "均衡状态", value: equilibriumStatus },
+    {
+      label: "性质分析",
+      value:
+        typeof propertyCount === "number" && propertyCount > 0
+          ? `${propertyCount} 项`
+          : undefined,
+    },
+    { label: "待审核修改", value: patchSummary },
+    { label: "回复摘要", value: summarizeText(response.assistantMessage) },
+  ]);
+}
+
+function compactDetails(
+  details: Array<{ label: string; value?: string | null }>
+): AgentRunStepDetail[] {
+  return details
+    .map((detail) => ({
+      label: detail.label,
+      value: detail.value?.trim() ?? "",
+    }))
+    .filter((detail) => detail.value.length > 0);
+}
+
+function summarizeText(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 96) return normalized;
+  return `${normalized.slice(0, 96)}...`;
 }
