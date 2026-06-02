@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import { neon } from "@neondatabase/serverless";
+import nextEnv from "@next/env";
 import { drizzle } from "drizzle-orm/neon-http";
 import { and, eq } from "drizzle-orm";
 
 import * as schema from "../src/db/schema.ts";
 import { createSimpleEquilibriumFixtureProject } from "../src/lib/development-fixtures.ts";
 import { projectFromRow } from "../src/lib/project-records.ts";
+
+const { loadEnvConfig } = nextEnv;
+
+loadEnvConfig(process.cwd());
 
 const { projects } = schema;
 
