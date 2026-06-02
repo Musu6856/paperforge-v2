@@ -9,6 +9,7 @@
     "lint": "eslint",
     "dev:seed:simple-equilibrium": "node scripts/seed-simple-equilibrium-fixture.mjs",
     "dev:seed:implicit-system": "node scripts/seed-implicit-system-fixture.mjs",
+    "smoke:production-persistence": "node scripts/smoke-production-project-persistence.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"

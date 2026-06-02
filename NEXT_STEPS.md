@@ -192,10 +192,17 @@ Current production MVP shape:
 - Local `.paperforge-dev/projects.json` storage is development-only and activates only in development guest mode without `DATABASE_URL`.
 - Project assets are stored in the `projects` table. The `research_session` JSONB field carries messages, pending decisions, asset state, and `agentRuns`, so Agent traces persist with the project for the current MVP.
 - Runtime model calls go through `/api/research/generate`, protected by user auth and the existing in-memory rate limiter.
+- A production persistence smoke command is available once `DATABASE_URL` points at a disposable or staging Neon database:
+
+```powershell
+npm run smoke:production-persistence
+```
+
+  It inserts a solved simple-equilibrium project with Agent trace data, reads it back through the project row mapper, verifies the trace and property assets, updates the title, and deletes the smoke row.
 
 上线前必须稳定的事项:
 
-- Verify a production-like Neon database path end to end with `DATABASE_URL`, `npm run db:push`, project create/update/delete, refresh restore, and Agent trace persistence.
+- Verify a production-like Neon database path end to end with `DATABASE_URL`, `npm run db:push`, `npm run smoke:production-persistence`, project create/update/delete, refresh restore, and Agent trace persistence.
 - Keep dev fixtures out of the production user flow. `npm run dev:seed:simple-equilibrium` and `npm run dev:seed:implicit-system` are regression tools, not product entry points.
 - Confirm required deployment environment variables: Clerk keys, `DATABASE_URL`, and at least one provider key following the code fallback order `DEEPSEEK_API_KEY` -> `OPENAI_COMPATIBLE_API_KEY` -> `MIMO_API_KEY` -> `OPENAI_API_KEY`.
 - Decide whether the in-memory rate limiter is acceptable for the first public demo; for multi-instance production it should move to durable storage.
