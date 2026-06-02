@@ -218,6 +218,55 @@ function createSuppliedEquationBlock(model: HotellingModel) {
   ].join("\n");
 }
 
+type ExplicitReaction = {
+  foc: string;
+  reaction: string;
+  condition: string;
+};
+
+function createExplicitMechanismReactions(model: HotellingModel) {
+  return (["A", "B"] as const).flatMap((platform) =>
+    detectQuadraticEffortReaction(model, platform)
+  );
+}
+
+function detectQuadraticEffortReaction(
+  model: HotellingModel,
+  platform: "A" | "B"
+): ExplicitReaction[] {
+  const decision = `a_${platform}`;
+  const demand = `n_${platform}^B`;
+  const profit = model.profitFunctions.find(
+    (entry) => entry.platform.trim().toUpperCase() === platform
+  );
+  if (!profit) return [];
+  if (!getPlatformDecisionVariables(model, platform).includes(decision)) {
+    return [];
+  }
+
+  const expression = profit.expression;
+  const hasLinearBenefit = new RegExp(
+    `\\\\rho\\s*${escapeRegExp(decision)}\\s*${escapeRegExp(demand)}`
+  ).test(expression);
+  const hasQuadraticCost = new RegExp(
+    `\\\\frac\\{c\\s*${escapeRegExp(decision)}\\^2\\}\\{2\\}`
+  ).test(expression);
+
+  if (!hasLinearBenefit || !hasQuadraticCost) return [];
+
+  return [
+    {
+      foc: `\\frac{\\partial \\Pi_${platform}}{\\partial ${decision}}=\\rho ${demand}-c ${decision}=0`,
+      reaction: `${decision}^*=\\frac{\\rho ${demand}}{c}`,
+      condition: `c>0 for the quadratic effort cost in ${decision}.`,
+    },
+  ];
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function createReactionFunctionEquilibriumResult(
   model: HotellingModel,
   reasons: string[]
@@ -228,6 +277,13 @@ function createReactionFunctionEquilibriumResult(
   const zB = decisionsB.join(",");
   const profitEquations = createProfitEquationLines(model);
   const equationBlock = createSuppliedEquationBlock(model);
+  const explicitReactions = createExplicitMechanismReactions(model);
+  const explicitReactionText = explicitReactions
+    .map((reaction) => reaction.reaction)
+    .join(",\\quad ");
+  const reactionClosedForm =
+    `R_A(${zB};\\theta)=\\arg\\max_{${zA}}\\Pi_A(${zA},${zB};\\theta),\\quad ` +
+    `R_B(${zA};\\theta)=\\arg\\max_{${zB}}\\Pi_B(${zA},${zB};\\theta)`;
 
   return {
     status: "reaction_function",
@@ -242,21 +298,26 @@ function createReactionFunctionEquilibriumResult(
       ...profitEquations,
       ...createPlatformFocs(model, "A"),
       ...createPlatformFocs(model, "B"),
+      ...explicitReactions.map((reaction) => reaction.foc),
       "z_A=R_A(z_B;\\theta)",
       "z_B=R_B(z_A;\\theta)",
     ],
     conditions: [
       ...reasons,
+      ...explicitReactions.map((reaction) => reaction.condition),
       "Interior demand shares: n_i^B,n_i^S\\in(0,1).",
       "Local optimality: each platform Hessian with respect to its own decision vector is negative definite on the maintained region.",
       "Reaction fixed point: z_A=R_A(z_B;\\theta), z_B=R_B(z_A;\\theta).",
     ],
-    closedForm:
-      `R_A(${zB};\\theta)=\\arg\\max_{${zA}}\\Pi_A(${zA},${zB};\\theta),\\quad ` +
-      `R_B(${zA};\\theta)=\\arg\\max_{${zB}}\\Pi_B(${zA},${zB};\\theta)`,
+    closedForm: explicitReactionText
+      ? `${reactionClosedForm},\\quad ${explicitReactionText}`
+      : reactionClosedForm,
     derivation:
       "The model preserves enough Hotelling demand structure to derive reaction functions, but the current profit equations are not the canonical commission-subsidy form. PaperForge therefore reports the symbolic best-response system instead of fabricating a closed form. The supplied concrete equations are carried into the scaffold so the next narrowing pass differentiates the actual mechanism terms:\n\n" +
       `${equationBlock}\n\n` +
+      (explicitReactionText
+        ? `Recognized quadratic-effort reactions: ${explicitReactionText}.\n\n`
+        : "") +
       "To narrow this to a closed-form equilibrium, substitute the demand shares into both profit functions, solve the listed FOCs jointly, and verify the Hessian and interior-share conditions.",
     code: `# reaction-function symbolic scaffold
 import sympy as sp
@@ -264,6 +325,10 @@ import sympy as sp
 ${equationBlock
   .split("\n")
   .map((line) => `# ${line}`)
+  .join("\n")}
+
+${explicitReactions
+  .map((reaction) => `# Explicit narrow reaction: ${reaction.reaction}`)
   .join("\n")}
 
 # 1. Define demand shares from the Hotelling indifference system.
