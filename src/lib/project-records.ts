@@ -1,4 +1,4 @@
-import type { ProjectRow } from "@/db/schema";
+import type { NewProjectRow, ProjectRow } from "@/db/schema";
 import type {
   HotellingModel,
   ModelSourceMetadata,
@@ -25,6 +25,61 @@ export function projectFromRow(row: ProjectRow): ResearchProject {
     hotellingModel: normalizeHotellingModel(row.hotellingModel),
     equilibriumResult: row.equilibriumResult ?? undefined,
     propertyAnalyses: row.propertyAnalyses ?? [],
+  };
+}
+
+export type ProjectUpdateRow = Pick<
+  NewProjectRow,
+  | "rawIdea"
+  | "refinedIdea"
+  | "projectType"
+  | "model"
+  | "researchSession"
+  | "modelSource"
+  | "wizardCompleted"
+  | "sections"
+  | "references"
+  | "background"
+  | "literatureAnalyses"
+  | "hotellingModel"
+  | "equilibriumResult"
+  | "propertyAnalyses"
+  | "updatedAt"
+>;
+
+export function projectToInsertRow(
+  project: ResearchProject,
+  ownerId: string,
+  updatedAt = new Date()
+): NewProjectRow {
+  return {
+    id: project.id,
+    ownerId,
+    ...projectToUpdateRow(project, updatedAt),
+    createdAt: new Date(project.createdAt),
+  };
+}
+
+export function projectToUpdateRow(
+  project: ResearchProject,
+  updatedAt = new Date()
+): ProjectUpdateRow {
+  return {
+    rawIdea: project.rawIdea,
+    refinedIdea: project.refinedIdea,
+    projectType: project.projectType ?? "legacy",
+    model: project.model ?? null,
+    researchSession: project.researchSession ?? null,
+    modelSource: project.modelSource ?? null,
+    wizardCompleted: project.wizardCompleted,
+    sections: project.sections,
+    references: project.references,
+    background: project.background ?? null,
+    literatureAnalyses: project.literatureAnalyses ?? [],
+    hotellingModel: project.hotellingModel ?? null,
+    equilibriumResult: project.equilibriumResult ?? null,
+    propertyAnalyses: project.propertyAnalyses ?? [],
+    updatedAt,
   };
 }
 

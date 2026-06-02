@@ -105,6 +105,11 @@ Current scope:
   - browser console output had no new errors, only the existing Clerk development-key warning.
 - Fixed the logged-in empty-workspace sidebar regression: both the normal project sidebar and the empty `/research?new=1` sidebar now reuse the same bottom account/settings toolbar, so model settings remain reachable before a project exists.
 - Added a regression test for the empty research sidebar account/settings controls.
+- Added shared Neon project row mappers:
+  - `projectToInsertRow` is used by `/api/projects` and the production persistence smoke insert path;
+  - `projectToUpdateRow` is used by `/api/projects/[id]` and the production persistence smoke update path;
+  - the mapper regression test proves `researchSession.agentRuns` survives both insert and update payloads while update payloads do not mutate `ownerId` or `createdAt`.
+- Enhanced `npm run smoke:production-persistence`: it now inserts a solved fixture with Agent trace data, reads it back, updates the same project with an additional Agent run, reads it back again, verifies `updateAgentRuns: 2`, and deletes the smoke row.
 - Browser-smoked the empty local workspace on `http://localhost:3000/research?new=1`: the left sidebar showed the model summary and `设置` button, and opening settings showed `工作台设置`, language controls, and model settings. In the unauthenticated local browser, Clerk's `UserButton` itself renders empty; after login it uses the same toolbar slot.
 
 ## Verification Commands
@@ -124,11 +129,13 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 244/244.
+- `node --test "src/**/*.test.mjs"` passed, 245/245.
 - `node --test src\components\research-workspace\research-sidebar-empty-state.test.mjs` passed.
+- `node --test src\lib\project-records.test.mjs` passed, 8/8.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
+- `npm run smoke:production-persistence` passed against the independent v2 Neon database when Node was run through the local proxy (`HTTP_PROXY`, `HTTPS_PROXY`, and `NODE_OPTIONS=--use-env-proxy`); output included `agentRunSteps: 3` and `updateAgentRuns: 2`. One earlier attempt hit a local `ECONNRESET` before assertions, consistent with the known intermittent local Neon/proxy connection issue.
 - Targeted `implicit_system` tests passed, 43/43:
   - `src/lib/research-session.test.mjs`
   - `src/lib/research-flow.test.mjs`
@@ -238,7 +245,7 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
-- Add production-readiness tests and checks around project persistence first: local tests should prove Agent traces survive sanitize/row mapping, then a production-like smoke should verify the same behavior through the API with `DATABASE_URL`.
+- Add an authenticated browser/API release smoke for the deployed app: login, create a simple project, verify it persists after refresh, confirm the latest Agent trace and middle derivation are visible, and then delete the smoke project.
 - Improve the demo loop before adding more solver depth: make sure saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures remain easy to test and explain.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.

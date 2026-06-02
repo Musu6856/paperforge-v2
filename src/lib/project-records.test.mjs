@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectFromRow, sanitizeProjectPayload } from "./project-records.ts";
+import {
+  projectFromRow,
+  projectToInsertRow,
+  projectToUpdateRow,
+  sanitizeProjectPayload,
+} from "./project-records.ts";
 
 const baseProject = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -193,6 +198,47 @@ test("projectFromRow restores Agent run traces from research_session JSONB", () 
   assert.equal(run?.workflowId, "paperforge-research-workflow");
   assert.equal(run?.action, "solve_equilibrium");
   assert.equal(run?.steps[0]?.summary, "Plan persisted production run.");
+});
+
+test("project row mappers keep Agent traces through insert and update values", () => {
+  const project = sanitizeProjectPayload({
+    ...baseProject,
+    researchSession: createSessionWithAgentRun(),
+  });
+  assert.ok(project, "test project should sanitize");
+
+  const updatedAt = new Date(1710000005000);
+  const insertValues = projectToInsertRow(project, "user-production", updatedAt);
+  const insertedRun = insertValues.researchSession?.agentRuns?.at(-1);
+
+  assert.equal(insertValues.ownerId, "user-production");
+  assert.equal(insertValues.createdAt.getTime(), baseProject.createdAt);
+  assert.equal(insertValues.updatedAt, updatedAt);
+  assert.equal(insertedRun?.workflowId, "paperforge-research-workflow");
+  assert.equal(insertedRun?.steps[0]?.details?.[0]?.value, "production persistence");
+
+  const nextRun = {
+    ...createSessionWithAgentRun().agentRuns[0],
+    id: "agent-run-production-persistence-update",
+    action: "analyze_properties",
+  };
+  const updateValues = projectToUpdateRow(
+    {
+      ...project,
+      researchSession: {
+        ...project.researchSession,
+        agentRuns: [...(project.researchSession?.agentRuns ?? []), nextRun],
+      },
+    },
+    updatedAt
+  );
+  const updatedRun = updateValues.researchSession?.agentRuns?.at(-1);
+
+  assert.equal("ownerId" in updateValues, false);
+  assert.equal("createdAt" in updateValues, false);
+  assert.equal(updateValues.updatedAt, updatedAt);
+  assert.equal(updateValues.researchSession?.agentRuns?.length, 2);
+  assert.equal(updatedRun?.action, "analyze_properties");
 });
 
 test("projectFromRow normalizes legacy string symbols in hotelling models", () => {

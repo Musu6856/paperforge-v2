@@ -9,7 +9,11 @@ import { and, eq } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import { createSimpleEquilibriumFixtureProject } from "../src/lib/development-fixtures.ts";
 import { getConfiguredDatabaseUrl } from "../src/lib/database-url.ts";
-import { projectFromRow } from "../src/lib/project-records.ts";
+import {
+  projectFromRow,
+  projectToInsertRow,
+  projectToUpdateRow,
+} from "../src/lib/project-records.ts";
 
 const { loadEnvConfig } = nextEnv;
 
@@ -43,7 +47,7 @@ let shouldCleanup = false;
 try {
   const [inserted] = await db
     .insert(projects)
-    .values(toProjectRow(project, ownerId))
+    .values(projectToInsertRow(project, ownerId))
     .returning();
 
   assert.ok(inserted, "insert should return the created row");
@@ -60,17 +64,34 @@ try {
   assert.equal(storedRun?.steps.length, 3);
 
   const updatedTitle = `${smokeTitle} verified`;
+  const updateRun = {
+    ...storedRun,
+    id: `${storedRun.id}-update`,
+    action: "continue_conversation",
+    summary: "Production persistence update smoke.",
+  };
+  const updatedProject = {
+    ...stored,
+    refinedIdea: updatedTitle,
+    researchSession: {
+      ...stored.researchSession,
+      agentRuns: [...(stored.researchSession?.agentRuns ?? []), updateRun],
+    },
+  };
   const [updated] = await db
     .update(projects)
-    .set({
-      refinedIdea: updatedTitle,
-      updatedAt: new Date(),
-    })
+    .set(projectToUpdateRow(updatedProject))
     .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
     .returning();
 
   assert.ok(updated, "update should return the updated row");
-  assert.equal(projectFromRow(updated).refinedIdea, updatedTitle);
+  const storedUpdate = projectFromRow(updated);
+  const storedUpdateRun = storedUpdate.researchSession?.agentRuns?.at(-1);
+
+  assert.equal(storedUpdate.refinedIdea, updatedTitle);
+  assert.equal(storedUpdate.researchSession?.agentRuns?.length, 2);
+  assert.equal(storedUpdateRun?.action, "continue_conversation");
+  assert.equal(storedUpdateRun?.summary, "Production persistence update smoke.");
 
   console.log(
     JSON.stringify(
@@ -80,6 +101,7 @@ try {
         projectId,
         equilibriumStatus: stored.equilibriumResult?.status,
         agentRunSteps: storedRun?.steps.length ?? 0,
+        updateAgentRuns: storedUpdate.researchSession?.agentRuns?.length ?? 0,
       },
       null,
       2
@@ -121,29 +143,6 @@ try {
       process.exitCode = 1;
     }
   }
-}
-
-function toProjectRow(project, ownerId) {
-  return {
-    id: project.id,
-    ownerId,
-    rawIdea: project.rawIdea,
-    refinedIdea: project.refinedIdea,
-    projectType: project.projectType ?? "legacy",
-    model: project.model,
-    researchSession: project.researchSession ?? null,
-    modelSource: project.modelSource ?? null,
-    wizardCompleted: project.wizardCompleted,
-    sections: project.sections,
-    references: project.references,
-    background: project.background ?? null,
-    literatureAnalyses: project.literatureAnalyses ?? [],
-    hotellingModel: project.hotellingModel ?? null,
-    equilibriumResult: project.equilibriumResult ?? null,
-    propertyAnalyses: project.propertyAnalyses ?? [],
-    createdAt: new Date(project.createdAt),
-    updatedAt: new Date(),
-  };
 }
 
 function describeError(error) {

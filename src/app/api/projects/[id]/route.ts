@@ -7,7 +7,11 @@ import {
   isDevelopmentProjectStoreEnabled,
   updateDevelopmentProject,
 } from "@/lib/development-project-store";
-import { projectFromRow, sanitizeProjectPayload } from "@/lib/project-records";
+import {
+  projectFromRow,
+  projectToUpdateRow,
+  sanitizeProjectPayload,
+} from "@/lib/project-records";
 import { getRequestUserId } from "@/lib/server-auth";
 
 function jsonError(error: string, status: number, code: string) {
@@ -65,23 +69,7 @@ export async function PATCH(request: Request, context: ProjectRouteContext) {
 
     const [row] = await getDb()
       .update(projects)
-      .set({
-        rawIdea: project.rawIdea,
-        refinedIdea: project.refinedIdea,
-        projectType: project.projectType ?? "legacy",
-        model: project.model,
-        researchSession: project.researchSession ?? null,
-        modelSource: project.modelSource ?? null,
-        wizardCompleted: project.wizardCompleted,
-        sections: project.sections,
-        references: project.references,
-        background: project.background ?? null,
-        literatureAnalyses: project.literatureAnalyses ?? [],
-        hotellingModel: project.hotellingModel ?? null,
-        equilibriumResult: project.equilibriumResult ?? null,
-        propertyAnalyses: project.propertyAnalyses ?? [],
-        updatedAt: new Date(),
-      })
+      .set(projectToUpdateRow(project))
       .where(and(eq(projects.id, id), eq(projects.ownerId, userId)))
       .returning();
 
