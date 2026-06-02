@@ -9,8 +9,31 @@ import {
 } from "./research-session.ts";
 import type { AgentRunTrace, ResearchProject } from "./types.ts";
 
+const DEFAULT_DIRECTION_ID = "secondhand-commission-subsidy-hotelling";
+
+export const SIMPLE_EQUILIBRIUM_FIXTURE_PROJECT_ID =
+  "00000000-0000-4000-8000-000000000124";
+
 export const IMPLICIT_SYSTEM_FIXTURE_PROJECT_ID =
   "00000000-0000-4000-8000-000000000123";
+
+export function createSimpleEquilibriumFixtureProject(
+  now = 1710000400000
+): ResearchProject {
+  const project = createExplorationProject({
+    id: SIMPLE_EQUILIBRIUM_FIXTURE_PROJECT_ID,
+    rawIdea: "Local simple-equilibrium fixture for the canonical Hotelling demo",
+    now,
+  });
+
+  const analyzed = generatePropertyAnalysis(
+    generateSymbolicEquilibrium(
+      confirmResearchModel(adoptResearchDirection(project, DEFAULT_DIRECTION_ID))
+    )
+  );
+
+  return attachSimpleEquilibriumFixtureAgentRun(analyzed, now);
+}
 
 export function createImplicitSystemFixtureProject(
   now = 1710000300000
@@ -32,6 +55,16 @@ export function createImplicitSystemFixtureProject(
   return attachImplicitSystemFixtureAgentRun(analyzed, now);
 }
 
+export function seedSimpleEquilibriumDevelopmentFixture(
+  ownerId = DEVELOPMENT_GUEST_USER_ID,
+  now = Date.now()
+): ResearchProject {
+  return createDevelopmentProject(
+    ownerId,
+    createSimpleEquilibriumFixtureProject(now)
+  );
+}
+
 export function seedImplicitSystemDevelopmentFixture(
   ownerId = DEVELOPMENT_GUEST_USER_ID,
   now = Date.now()
@@ -40,6 +73,100 @@ export function seedImplicitSystemDevelopmentFixture(
     ownerId,
     createImplicitSystemFixtureProject(now)
   );
+}
+
+function attachSimpleEquilibriumFixtureAgentRun(
+  project: ResearchProject,
+  now: number
+): ResearchProject {
+  if (!project.researchSession) return project;
+
+  const startedAt = now + 1000;
+  const endedAt = startedAt + 1600;
+  const agentRun: AgentRunTrace = {
+    id: "agent-run-simple-equilibrium-fixture",
+    framework: "mastra",
+    workflowId: "paperforge-research-workflow",
+    action: "analyze_properties",
+    status: "success",
+    startedAt,
+    endedAt,
+    steps: [
+      {
+        id: "plan_research_action",
+        label: "Plan research action",
+        status: "success",
+        startedAt,
+        endedAt: startedAt + 100,
+        summary:
+          "Fixture plan: demonstrate the canonical solvable Hotelling model and its property analyses.",
+        details: [
+          { label: "Action", value: "analyze_properties" },
+          {
+            label: "Plan",
+            value:
+              "Use the simple_equilibrium_fixture to exercise the browser trace, closed-form equilibrium, and property-analysis surfaces without a provider call.",
+          },
+          {
+            label: "Expected output",
+            value:
+              "A persisted analysis-phase project with solved canonical equilibrium, property analyses, and visible Agent trace details.",
+          },
+          { label: "Execution mode", value: "local fixture" },
+        ],
+      },
+      {
+        id: "run_research_generation",
+        label: "Run research generation",
+        status: "success",
+        startedAt: startedAt + 100,
+        endedAt: startedAt + 1250,
+        summary:
+          "Fixture generation complete: analysis phase with solved canonical equilibrium and local property analyses.",
+        details: [
+          { label: "Source", value: "simple_equilibrium_fixture" },
+          { label: "Result phase", value: "analysis" },
+          { label: "Equilibrium status", value: "solved" },
+          {
+            label: "Property analyses",
+            value: `${project.propertyAnalyses?.length ?? 0} items`,
+          },
+          {
+            label: "Reply summary",
+            value:
+              project.researchSession.messages.at(-1)?.content.slice(0, 120) ??
+              "Simple-equilibrium fixture generated.",
+          },
+        ],
+      },
+      {
+        id: "summarize_research_output",
+        label: "Summarize structured result",
+        status: "success",
+        startedAt: startedAt + 1250,
+        endedAt,
+        summary:
+          "Fixture summary: simple solved-equilibrium project is ready for demo smoke testing.",
+        details: [
+          {
+            label: "Output summary",
+            value:
+              "Open the fixture project, then check the closed-form derivation, property analyses, right-side assets, Agent tab, and inline Agent trace.",
+          },
+          { label: "Result phase", value: "analysis" },
+          { label: "Next action", value: "browser_smoke" },
+        ],
+      },
+    ],
+  };
+
+  return {
+    ...project,
+    researchSession: {
+      ...project.researchSession,
+      agentRuns: [...(project.researchSession.agentRuns ?? []), agentRun],
+    },
+  };
 }
 
 function attachImplicitSystemFixtureAgentRun(

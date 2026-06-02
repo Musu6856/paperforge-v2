@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "dev:seed:simple-equilibrium": "node scripts/seed-simple-equilibrium-fixture.mjs",
     "dev:seed:implicit-system": "node scripts/seed-implicit-system-fixture.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

@@ -11,8 +11,52 @@ import {
 import {
   createImplicitSystemFixtureProject,
   IMPLICIT_SYSTEM_FIXTURE_PROJECT_ID,
+  createSimpleEquilibriumFixtureProject,
   seedImplicitSystemDevelopmentFixture,
+  seedSimpleEquilibriumDevelopmentFixture,
+  SIMPLE_EQUILIBRIUM_FIXTURE_PROJECT_ID,
 } from "./development-fixtures.ts";
+
+test("simple-equilibrium fixture creates a browser-smoke-ready solved analysis project", () => {
+  const project = createSimpleEquilibriumFixtureProject(1710000400000);
+  const run = project.researchSession?.agentRuns?.at(-1);
+
+  assert.equal(project.id, SIMPLE_EQUILIBRIUM_FIXTURE_PROJECT_ID);
+  assert.equal(project.researchSession?.phase, "analysis");
+  assert.equal(project.equilibriumResult?.status, "solved");
+  assert.match(project.equilibriumResult?.closedForm ?? "", /\\tau_A\^\*/);
+  assert.equal(project.propertyAnalyses?.length, 3);
+  assert.equal(run?.workflowId, "paperforge-research-workflow");
+  assert.equal(run?.action, "analyze_properties");
+  assert.equal(run?.steps.length, 3);
+  assert.match(
+    run?.steps
+      .flatMap((step) => step.details ?? [])
+      .map((detail) => detail.value)
+      .join("\n") ?? "",
+    /simple_equilibrium_fixture|solved|analysis/
+  );
+});
+
+test("simple-equilibrium fixture seeds the local development project store", () => {
+  withTempDevelopmentProjectStore(() => {
+    clearDevelopmentProjectStoreForTests();
+
+    const seeded = seedSimpleEquilibriumDevelopmentFixture(
+      "owner-a",
+      1710000400000
+    );
+    const stored = getDevelopmentProject("owner-a", seeded.id);
+
+    assert.equal(seeded.id, SIMPLE_EQUILIBRIUM_FIXTURE_PROJECT_ID);
+    assert.equal(stored?.equilibriumResult?.status, "solved");
+    assert.equal(stored?.researchSession?.phase, "analysis");
+    assert.equal(
+      stored?.researchSession?.agentRuns?.at(-1)?.action,
+      "analyze_properties"
+    );
+  });
+});
 
 test("implicit-system fixture creates a browser-smoke-ready analysis project", () => {
   const project = createImplicitSystemFixtureProject(1710000300000);

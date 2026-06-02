@@ -24,6 +24,13 @@ The goal is not to invent a totally new product from scratch. The goal is to tur
 
 The chosen framework is Mastra because this codebase is already TypeScript/Next.js, and Mastra is the fastest fit for a small productized Agent demo.
 
+The product bar is deliberately demo-oriented rather than solver-maximalist:
+
+- For non-expert users, PaperForge should clearly feel like an Agent workspace: it plans, runs, records traces, preserves history, and exposes what it did.
+- For users who understand theoretical platform/equilibrium research, PaperForge should demonstrate that it can solve and analyze simple, well-structured models.
+- Complex bespoke mechanism models can fall back to reaction-function or implicit-system scaffolds instead of pretending to solve everything.
+- Deep symbolic-solving coverage is useful only when it supports the demo and simple-model research experience; it is not the main product promise for this milestone.
+
 Current scope:
 
 - Keep the existing PaperForge research workflow as the product surface.
@@ -86,6 +93,10 @@ Current scope:
   - run `npm run dev:seed:implicit-system` to seed `/research/00000000-0000-4000-8000-000000000123`;
   - the fixture project is already in `analysis` phase, has `equilibriumResult.status === "implicit_system"`, includes three property analyses, and carries a structured Mastra-style Agent run trace;
   - the development project store now reloads when `.paperforge-dev/projects.json` changes externally, so the seed command is visible to a running dev server without restarting it.
+- Added a dev-only simple-equilibrium fixture for product demos where the local solver should visibly succeed:
+  - run `npm run dev:seed:simple-equilibrium` to seed `/research/00000000-0000-4000-8000-000000000124`;
+  - the fixture project is already in `analysis` phase, has `equilibriumResult.status === "solved"`, includes three property analyses, and carries a structured Mastra-style Agent run trace;
+  - this gives local browser smoke tests a stable "simple model succeeds" counterpart to the implicit-system fixture's "complex model stays honest" path.
 - Browser-smoked the implicit-system fixture on `http://localhost:3000/research/00000000-0000-4000-8000-000000000123`:
   - the right-side assets opened on the Properties tab and showed the implicit-system property-analysis path;
   - the middle derivation displayed the implicit system and property-analysis content;
@@ -134,6 +145,14 @@ npm run dev -- --port 3001
 
 In development, the app can run without `DATABASE_URL`. Project data is stored locally at `.paperforge-dev/projects.json` and survives browser refreshes and dev server restarts. Delete that file or directory to reset the local no-db workspace.
 
+Seed a solved simple-model demo project:
+
+```powershell
+npm run dev:seed:simple-equilibrium
+```
+
+Then open `/research/00000000-0000-4000-8000-000000000124`.
+
 ## Agent Tab Browser Smoke Checklist
 
 Purpose: verify the local no-db development flow makes the Mastra run visible after creating a research project.
@@ -166,13 +185,15 @@ Pass criteria:
 
 ## Next Priority
 
-1. Continue narrowing the symbolic solver from effort-reaction detection toward actual closed-form detection for small explicit systems.
+1. Keep polishing the visible Agent product loop: project persistence, trace readability, middle derivation preservation, right-side assets, and repeatable browser smoke checks.
 2. Use the implicit-system fixture for future browser regression checks whenever right-side assets, middle derivation, inline Agent trace, or property-analysis UI changes.
-3. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
+3. Keep the symbolic solver focused on simple, well-structured equilibrium examples that make the research demo credible.
+4. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
 
 Recommended next implementation step:
 
-- Continue narrowing the symbolic solver from effort-reaction detection toward actual closed-form detection for small explicit systems, starting with substituting the recognized `a_i^*` reactions back into platform profit/FOC scaffolds.
+- Improve the demo loop before adding more solver depth: make sure saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures remain easy to test and explain.
+- If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
 
 ## Boundaries
