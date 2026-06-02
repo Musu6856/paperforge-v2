@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 import type {
+  ResearchGenerationAction,
   ResearchGenerationRequest,
   ResearchGenerationResponse,
 } from "../../research-generation/types.ts";
@@ -57,7 +58,7 @@ export const workflowDecisionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("suggest_next_tool"),
     reason: z.string(),
-    nextAction: z.string(),
+    nextAction: z.custom<ResearchGenerationAction>(),
     nextTool: z.string(),
   }),
   z.object({

@@ -108,6 +108,7 @@ export type GenerateResearchProjectPayload =
       rawIdea: string;
       modelSource?: ModelSourceMetadata;
       runtimeModelSource?: ModelSourceSettings;
+      autoAdvance?: boolean;
     }
   | {
       action: "build_model";
@@ -116,18 +117,21 @@ export type GenerateResearchProjectPayload =
       userMessage?: string;
       project: ResearchProject;
       runtimeModelSource?: ModelSourceSettings;
+      autoAdvance?: boolean;
     }
   | {
       action: "solve_equilibrium";
       rawIdea: string;
       project: ResearchProject;
       runtimeModelSource?: ModelSourceSettings;
+      autoAdvance?: boolean;
     }
   | {
       action: "analyze_properties";
       rawIdea: string;
       project: ResearchProject;
       runtimeModelSource?: ModelSourceSettings;
+      autoAdvance?: boolean;
     }
   | {
       action: "continue_conversation";
@@ -135,6 +139,7 @@ export type GenerateResearchProjectPayload =
       userMessage: string;
       project: ResearchProject;
       runtimeModelSource?: ModelSourceSettings;
+      autoAdvance?: boolean;
     };
 
 export interface GenerateResearchProjectResult {

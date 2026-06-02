@@ -5,6 +5,7 @@ import { PAPERFORGE_RESEARCH_AGENT } from "./agents/research-agent.ts";
 import { planResearchAction } from "./planners/research-planner.ts";
 import { runResearchAgentWorkflow } from "./research-workflow.ts";
 import { getResearchAgentToolForAction } from "./tools/research-tool-registry.ts";
+import { createExplorationProject } from "../research-session.ts";
 
 test("research agent runtime exposes agent planner and tool registry boundaries", () => {
   const tool = getResearchAgentToolForAction("discover_directions");
@@ -63,4 +64,40 @@ test("research workflow records a Mastra agent run around generation", async () 
     result.project.researchSession?.agentRuns?.at(-1)?.id,
     result.agentRun.id
   );
+});
+
+test("research agent auto-advance chains a solved equilibrium into property analysis", async () => {
+  const exploration = createExplorationProject({
+    id: "11111111-1111-4111-8111-111111111111",
+    rawIdea: "Research secondhand platform commission and subsidy competition",
+    now: 1710000000000,
+  });
+  const client = { complete: async () => "{" };
+  const built = await runResearchAgentWorkflow(
+    {
+      action: "build_model",
+      rawIdea: exploration.rawIdea,
+      selectedDirectionId: "secondhand-commission-subsidy-hotelling",
+      project: exploration,
+    },
+    client
+  );
+
+  const result = await runResearchAgentWorkflow(
+    {
+      action: "solve_equilibrium",
+      rawIdea: built.project.rawIdea,
+      project: built.project,
+      autoAdvance: true,
+    },
+    client
+  );
+  const latestRuns = result.project.researchSession?.agentRuns
+    ?.slice(-2)
+    .map((run) => run.action);
+
+  assert.equal(result.agentRun.action, "analyze_properties");
+  assert.deepEqual(latestRuns, ["solve_equilibrium", "analyze_properties"]);
+  assert.equal(result.project.researchSession?.phase, "analysis");
+  assert.ok((result.project.propertyAnalyses?.length ?? 0) >= 3);
 });

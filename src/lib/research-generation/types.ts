@@ -19,6 +19,7 @@ export type ResearchGenerationRequest = {
   modelSource?: ModelSourceMetadata;
   runtimeModelSource?: ModelSourceSettings;
   project?: ResearchProject;
+  autoAdvance?: boolean;
 };
 
 export type ResearchGenerationResponse = {

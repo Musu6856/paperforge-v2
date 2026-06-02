@@ -75,6 +75,7 @@ export function ResearchWorkspace({
     useState<ResearchSessionMessage | null>(null);
   const [pendingAssistantMessage, setPendingAssistantMessage] =
     useState<ResearchChatViewMessage | null>(null);
+  const [autoAdvanceAgent, setAutoAdvanceAgent] = useState(false);
   const activeProject = project
     ? normalizeResearchProjectForWorkspace(project)
     : null;
@@ -122,6 +123,7 @@ export function ResearchWorkspace({
           selectedDirectionId: directionId,
           project: activeProject,
           runtimeModelSource: readRuntimeModelSourceSettings(),
+          autoAdvance: autoAdvanceAgent,
         });
       const nextProject = getPersistableResearchProject(result);
       if (!nextProject) {
@@ -182,6 +184,7 @@ export function ResearchWorkspace({
           rawIdea: activeProject.rawIdea,
           project: activeProject,
           runtimeModelSource: readRuntimeModelSourceSettings(),
+          autoAdvance: autoAdvanceAgent,
         });
       const nextProject = getPersistableResearchProject(result);
       if (!nextProject) {
@@ -239,6 +242,7 @@ export function ResearchWorkspace({
           rawIdea: activeProject.rawIdea,
           project: activeProject,
           runtimeModelSource: readRuntimeModelSourceSettings(),
+          autoAdvance: autoAdvanceAgent,
         });
       const nextProject = getPersistableResearchProject(result);
       if (!nextProject) {
@@ -572,6 +576,8 @@ export function ResearchWorkspace({
             onSaveModelSymbols={handleSaveModelSymbols}
             onApplyAssetPatch={handleApplyAssetPatch}
             onRejectAssetPatch={handleRejectAssetPatch}
+            autoAdvanceAgent={autoAdvanceAgent}
+            onAutoAdvanceAgentChange={setAutoAdvanceAgent}
             isCollapsed={isCollapsed}
             onTogglePane={toggleRight}
             copy={copy.assets}

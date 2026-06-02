@@ -81,6 +81,14 @@ Current scope:
   - `summarize_research_output` records the final readable summary, resulting phase, and next pending action.
   - `decide_next_agent_action` records the bounded Agent decision after observing the result: suggest the next tool, wait for user input, or stop.
 - The right-side Agent tab and the inline Agent trace under the latest assistant message both display these step summaries/details without altering the assistant's main derivation text.
+- Added an opt-in `autoAdvance` path for the bounded Agent loop:
+  - the right assets pane has an `Auto advance` / `自动推进` checkbox;
+  - when enabled, the runtime may run up to two additional safe tool calls after the requested action;
+  - current safe chaining supports continuing from `solve_equilibrium` into `analyze_properties`, while user-choice and pending-review states still stop.
+- Browser-smoked the auto-advance toggle on the simple-equilibrium fixture at `http://localhost:3000/research/00000000-0000-4000-8000-000000000124`:
+  - the right assets pane rendered exactly one `自动推进` checkbox;
+  - the checkbox could be enabled and remained enabled while the Agent/equilibrium surfaces stayed visible;
+  - browser page console output had no new errors during the smoke check.
 - Development no-database project storage now persists to `.paperforge-dev/projects.json`, so local projects survive browser refreshes and dev server restarts.
 - The markdown renderer now protects display math blocks and wraps standalone raw LaTeX formula lines before symbolic-token normalization, avoiding occasional red/raw formula rendering.
 - The center chat composer now submits on plain Enter, keeps Shift+Enter for multiline drafts, and avoids submitting while IME composition is active.
@@ -137,13 +145,14 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 246/246.
-- `node --test src\lib\agent-runtime\research-workflow.test.mjs src\lib\agent-runtime\run-view.test.mjs` passed, 5/5, including the Agent metadata/planner/tool-registry boundary test.
+- `node --test "src/**/*.test.mjs"` passed, 247/247.
+- `node --test src\lib\agent-runtime\research-workflow.test.mjs src\lib\agent-runtime\run-view.test.mjs` passed, 6/6, including the Agent metadata/planner/tool-registry boundary test and the auto-advance solve-to-analysis test.
 - `node --test src\components\research-workspace\research-sidebar-empty-state.test.mjs` passed.
 - `node --test src\lib\project-records.test.mjs` passed, 8/8.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
+- Browser smoke for the simple-equilibrium fixture passed with the auto-advance checkbox visible and enabled.
 - `npm run smoke:production-persistence` passed against the independent v2 Neon database when Node was run through the local proxy (`HTTP_PROXY`, `HTTPS_PROXY`, and `NODE_OPTIONS=--use-env-proxy`); output included `agentRunSteps: 3` and `updateAgentRuns: 2`. One earlier attempt hit a local `ECONNRESET` before assertions, consistent with the known intermittent local Neon/proxy connection issue.
 - The deployed production app was manually smoke-tested by the user after the release; no major issues were reported.
 - Targeted `implicit_system` tests passed, 43/43:
@@ -255,9 +264,8 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
-- Decide whether to enable automatic multi-tool chaining in the bounded Agent loop. The runtime now records next-step decisions, but it intentionally does not auto-run additional model calls yet; the next increment can add an explicit opt-in for chaining.
-- Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - Add a short production release checklist/runbook so future deploys repeat the same path: local tests, build, production persistence smoke, deployed-app smoke, and cleanup of any smoke projects.
+- Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
 

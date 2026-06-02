@@ -102,6 +102,7 @@ export const appCopy = {
       headerFallbackTitle: "工作台总览",
       headerDescription: "右侧内容是当前研究的结构化版本，可以检查、采用和编辑。",
       exportMarkdown: "导出 Markdown",
+      autoAdvanceAgent: "自动推进",
       collapsePane: "收起右侧研究资产",
       expandPane: "展开右侧研究资产",
       phaseDirection: "方向发现",
@@ -245,6 +246,7 @@ export const appCopy = {
       headerDescription:
         "The right pane is the structured version of the current research. Review, adopt, and edit it here.",
       exportMarkdown: "Export Markdown",
+      autoAdvanceAgent: "Auto advance",
       collapsePane: "Collapse research assets",
       expandPane: "Expand research assets",
       phaseDirection: "Direction Discovery",

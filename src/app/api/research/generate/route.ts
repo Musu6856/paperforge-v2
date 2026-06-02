@@ -126,6 +126,10 @@ function validateRequest(body: ResearchGenerationRequest) {
     return "userMessage must be a string";
   }
 
+  if (body.autoAdvance !== undefined && typeof body.autoAdvance !== "boolean") {
+    return "autoAdvance must be a boolean";
+  }
+
   if (
     body.action === "build_model" &&
     body.project !== undefined &&

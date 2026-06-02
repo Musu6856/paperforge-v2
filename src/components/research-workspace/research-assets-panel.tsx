@@ -62,6 +62,8 @@ type ResearchAssetsPanelProps = {
   onSaveModelSymbols?: (symbols: NonNullable<ResearchProject["hotellingModel"]>["symbols"]) => Promise<void> | void;
   onApplyAssetPatch?: (patchId: string) => void;
   onRejectAssetPatch?: (patchId: string) => void;
+  autoAdvanceAgent?: boolean;
+  onAutoAdvanceAgentChange?: (value: boolean) => void;
   isCollapsed?: boolean;
   onTogglePane?: () => void;
   copy: ReturnType<typeof getAppCopy>["assets"];
@@ -103,6 +105,8 @@ function ResearchAssetsPanelContent({
   onSaveModelSymbols,
   onApplyAssetPatch,
   onRejectAssetPatch,
+  autoAdvanceAgent,
+  onAutoAdvanceAgentChange,
   isCollapsed,
   onTogglePane,
   copy,
@@ -161,6 +165,11 @@ function ResearchAssetsPanelContent({
         : activeTab === "properties"
           ? isAnalyzingProperties
           : false;
+  const isAnyGenerationBusy =
+    Boolean(adoptingDirectionId) ||
+    Boolean(isConfirmingModel) ||
+    Boolean(isSolvingEquilibrium) ||
+    Boolean(isAnalyzingProperties);
   const activePrimaryActionHandler =
     activeTab === "model"
       ? modelPrimaryAction?.kind === "confirm_model"
@@ -238,6 +247,20 @@ function ResearchAssetsPanelContent({
             </p>
           </div>
           <div className="flex items-start gap-2">
+            {onAutoAdvanceAgentChange ? (
+              <label className="flex h-8 shrink-0 items-center gap-2 rounded-md border bg-background px-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-foreground"
+                  checked={Boolean(autoAdvanceAgent)}
+                  disabled={isAnyGenerationBusy}
+                  onChange={(event) =>
+                    onAutoAdvanceAgentChange(event.currentTarget.checked)
+                  }
+                />
+                <span>{copy.autoAdvanceAgent}</span>
+              </label>
+            ) : null}
             {project ? (
               <Button
                 type="button"

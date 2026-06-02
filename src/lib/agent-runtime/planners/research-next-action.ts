@@ -37,6 +37,20 @@ export function decideNextResearchAgentAction(
     };
   }
 
+  if (pendingKind === "solve_equilibrium") {
+    return suggestNextTool(
+      "solve_equilibrium",
+      "当前模型已准备好，下一步可以进入符号均衡求解。"
+    );
+  }
+
+  if (pendingKind === "analyze_properties") {
+    return suggestNextTool(
+      "analyze_properties",
+      "当前均衡对象已准备好，下一步可以进入性质分析。"
+    );
+  }
+
   if (pendingKind) {
     return {
       kind: "ask_user",
