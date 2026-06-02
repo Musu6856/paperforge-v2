@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 
 import * as schema from "../src/db/schema.ts";
 import { createSimpleEquilibriumFixtureProject } from "../src/lib/development-fixtures.ts";
+import { getConfiguredDatabaseUrl } from "../src/lib/database-url.ts";
 import { projectFromRow } from "../src/lib/project-records.ts";
 
 const { loadEnvConfig } = nextEnv;
@@ -15,10 +16,11 @@ const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const { projects } = schema;
+const databaseUrl = getConfiguredDatabaseUrl();
 
-if (!process.env.DATABASE_URL) {
+if (!databaseUrl) {
   console.error(
-    "DATABASE_URL is required for the production project persistence smoke."
+    "DATABASE_URL or NEON_DATABASE_URL is required for the production project persistence smoke."
   );
   process.exit(1);
 }
@@ -35,7 +37,8 @@ const project = {
   rawIdea: smokeTitle,
   refinedIdea: smokeTitle,
 };
-const db = drizzle(neon(process.env.DATABASE_URL), { schema });
+const db = drizzle(neon(databaseUrl), { schema });
+let shouldCleanup = false;
 
 try {
   const [inserted] = await db
@@ -44,6 +47,7 @@ try {
     .returning();
 
   assert.ok(inserted, "insert should return the created row");
+  shouldCleanup = true;
 
   const stored = projectFromRow(inserted);
   const storedRun = stored.researchSession?.agentRuns?.at(-1);
@@ -81,10 +85,42 @@ try {
       2
     )
   );
+} catch (error) {
+  console.error(
+    JSON.stringify(
+      {
+        status: "failed",
+        ownerId,
+        projectId,
+        error: describeError(error),
+      },
+      null,
+      2
+    )
+  );
+  process.exitCode = 1;
 } finally {
-  await db
-    .delete(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)));
+  if (shouldCleanup) {
+    try {
+      await db
+        .delete(projects)
+        .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)));
+    } catch (error) {
+      console.error(
+        JSON.stringify(
+          {
+            status: "cleanup_failed",
+            ownerId,
+            projectId,
+            error: describeError(error),
+          },
+          null,
+          2
+        )
+      );
+      process.exitCode = 1;
+    }
+  }
 }
 
 function toProjectRow(project, ownerId) {
@@ -107,5 +143,26 @@ function toProjectRow(project, ownerId) {
     propertyAnalyses: project.propertyAnalyses ?? [],
     createdAt: new Date(project.createdAt),
     updatedAt: new Date(),
+  };
+}
+
+function describeError(error) {
+  const cause = error?.cause;
+  const sourceError = cause?.sourceError;
+  const sourceCause = sourceError?.cause;
+  const fallbackMessage =
+    error instanceof Error && error.name !== "DrizzleQueryError"
+      ? error.message
+      : undefined;
+
+  return {
+    name: error?.name ?? "UnknownError",
+    message:
+      cause?.message ??
+      sourceError?.message ??
+      sourceCause?.message ??
+      fallbackMessage ??
+      "Production persistence smoke failed.",
+    code: cause?.code ?? sourceCause?.code,
   };
 }

@@ -15,24 +15,32 @@ import {
 } from "./development-project-store.ts";
 import { createExplorationProject } from "./research-session.ts";
 
-test("development project store is enabled only for local development without DATABASE_URL", () => {
+test("development project store is enabled only for local development without a configured database URL", () => {
   const previousNodeEnv = process.env.NODE_ENV;
   const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousNeonDatabaseUrl = process.env.NEON_DATABASE_URL;
 
   try {
     process.env.NODE_ENV = "development";
     delete process.env.DATABASE_URL;
+    delete process.env.NEON_DATABASE_URL;
     assert.equal(isDevelopmentProjectStoreEnabled(), true);
 
     process.env.DATABASE_URL = "postgresql://example";
     assert.equal(isDevelopmentProjectStoreEnabled(), false);
 
+    delete process.env.DATABASE_URL;
+    process.env.NEON_DATABASE_URL = "postgresql://neon-example";
+    assert.equal(isDevelopmentProjectStoreEnabled(), false);
+
     process.env.NODE_ENV = "production";
     delete process.env.DATABASE_URL;
+    delete process.env.NEON_DATABASE_URL;
     assert.equal(isDevelopmentProjectStoreEnabled(), false);
   } finally {
     restoreEnv("NODE_ENV", previousNodeEnv);
     restoreEnv("DATABASE_URL", previousDatabaseUrl);
+    restoreEnv("NEON_DATABASE_URL", previousNeonDatabaseUrl);
   }
 });
 

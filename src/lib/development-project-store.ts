@@ -8,6 +8,7 @@ import {
 import { dirname, join } from "node:path";
 
 import { isDevelopmentGuestMode } from "./auth.ts";
+import { getConfiguredDatabaseUrl } from "./database-url.ts";
 import type { ResearchProject } from "./types.ts";
 
 const projectsByOwner = new Map<string, ResearchProject[]>();
@@ -15,7 +16,7 @@ let loadedStorePath: string | null = null;
 let loadedStoreSignature: string | null = null;
 
 export function isDevelopmentProjectStoreEnabled() {
-  return isDevelopmentGuestMode() && !process.env.DATABASE_URL;
+  return isDevelopmentGuestMode() && !getConfiguredDatabaseUrl();
 }
 
 export function listDevelopmentProjects(ownerId: string): ResearchProject[] {
