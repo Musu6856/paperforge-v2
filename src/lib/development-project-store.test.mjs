@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -96,6 +96,38 @@ test("development project store persists projects across in-memory resets", () =
     assert.equal(
       getDevelopmentProject("owner-a", project.id)?.rawIdea,
       "persisted local project"
+    );
+  });
+});
+
+test("development project store reloads when an external seed updates the store file", () => {
+  withTempDevelopmentProjectStore(() => {
+    clearDevelopmentProjectStoreForTests();
+    const first = createExplorationProject({
+      id: "55555555-5555-4555-8555-555555555555",
+      rawIdea: "first local project",
+      now: 1710000000000,
+    });
+    const second = createExplorationProject({
+      id: "66666666-6666-4666-8666-666666666666",
+      rawIdea: "externally seeded project",
+      now: 1710000001000,
+    });
+
+    createDevelopmentProject("owner-a", first);
+    assert.deepEqual(
+      listDevelopmentProjects("owner-a").map((project) => project.id),
+      [first.id]
+    );
+
+    const storePath = process.env.PAPERFORGE_DEV_PROJECT_STORE_PATH;
+    const payload = JSON.parse(readFileSync(storePath, "utf8"));
+    payload["owner-a"].push(second);
+    writeFileSync(storePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+
+    assert.deepEqual(
+      listDevelopmentProjects("owner-a").map((project) => project.id),
+      [second.id, first.id]
     );
   });
 });

@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 
 import { isDevelopmentGuestMode } from "./auth.ts";
@@ -6,6 +12,7 @@ import type { ResearchProject } from "./types.ts";
 
 const projectsByOwner = new Map<string, ResearchProject[]>();
 let loadedStorePath: string | null = null;
+let loadedStoreSignature: string | null = null;
 
 export function isDevelopmentProjectStoreEnabled() {
   return isDevelopmentGuestMode() && !process.env.DATABASE_URL;
@@ -80,14 +87,22 @@ export function deleteDevelopmentProject(ownerId: string, projectId: string) {
 export function clearDevelopmentProjectStoreForTests() {
   projectsByOwner.clear();
   loadedStorePath = null;
+  loadedStoreSignature = null;
 }
 
 function ensureProjectStoreLoaded() {
   const storePath = getDevelopmentProjectStorePath();
-  if (loadedStorePath === storePath) return;
+  const storeSignature = getStoreSignature(storePath);
+  if (
+    loadedStorePath === storePath &&
+    loadedStoreSignature === storeSignature
+  ) {
+    return;
+  }
 
   projectsByOwner.clear();
   loadedStorePath = storePath;
+  loadedStoreSignature = storeSignature;
 
   if (!existsSync(storePath)) return;
 
@@ -115,6 +130,8 @@ function persistProjectStore() {
 
   mkdirSync(dirname(storePath), { recursive: true });
   writeFileSync(storePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  loadedStorePath = storePath;
+  loadedStoreSignature = getStoreSignature(storePath);
 }
 
 function getDevelopmentProjectStorePath() {
@@ -131,6 +148,15 @@ function getOwnerProjects(ownerId: string) {
   const next: ResearchProject[] = [];
   projectsByOwner.set(ownerId, next);
   return next;
+}
+
+function getStoreSignature(storePath: string) {
+  try {
+    const stats = statSync(storePath);
+    return `${stats.mtimeMs}:${stats.size}`;
+  } catch {
+    return null;
+  }
 }
 
 function cloneProject(project: ResearchProject): ResearchProject {

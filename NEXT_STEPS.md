@@ -81,6 +81,16 @@ Current scope:
 - Rechecked the `implicit_system` path at the code level because no existing local browser project had that status: the targeted research-session, research-flow, generation-result, and symbolic-solver tests passed 43/43.
 - `plan_research_action` and `summarize_research_output` should stay deterministic trace steps for now: they are cheap, stable, product-visible metadata and should not replace or hide the middle derivation text with extra model calls.
 - The symbolic solver now carries supplied concrete utility/profit equations into `reaction_function` and `implicit_system` scaffolds. Concrete mechanism terms such as quality effort revenue/cost now appear in the FOC list, derivation text, and SymPy scaffold instead of being reduced to a generic `F(z,\theta)=0` placeholder. It still returns `reaction_function` or `implicit_system` until a closed form is actually proven.
+- Added a dev-only implicit-system fixture for repeatable browser smoke testing without spending a provider call:
+  - run `npm run dev:seed:implicit-system` to seed `/research/00000000-0000-4000-8000-000000000123`;
+  - the fixture project is already in `analysis` phase, has `equilibriumResult.status === "implicit_system"`, includes three property analyses, and carries a structured Mastra-style Agent run trace;
+  - the development project store now reloads when `.paperforge-dev/projects.json` changes externally, so the seed command is visible to a running dev server without restarting it.
+- Browser-smoked the implicit-system fixture on `http://localhost:3000/research/00000000-0000-4000-8000-000000000123`:
+  - the right-side assets opened on the Properties tab and showed the implicit-system property-analysis path;
+  - the middle derivation displayed the implicit system and property-analysis content;
+  - the inline Agent trace expanded under the latest assistant message and showed workflow/action/duration plus fixture source, phase, status, and property count;
+  - the right-side Agent tab showed `paperforge-research-workflow`, `analyze_properties`, `implicit_system`, and the three fixture trace steps;
+  - browser console output had no new errors, only the existing Clerk development-key warning.
 
 ## Verification Commands
 
@@ -99,7 +109,7 @@ Known current lint state:
 
 Latest verification on the current branch:
 
-- `node --test "src/**/*.test.mjs"` passed, 231/231.
+- `node --test "src/**/*.test.mjs"` passed, 234/234.
 - `npx tsc --noEmit` passed.
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
@@ -155,14 +165,13 @@ Pass criteria:
 
 ## Next Priority
 
-1. Add a controlled local/browser fixture for an `implicit_system` project so the right-side assets, middle derivation, inline Agent trace, and property-analysis path can be smoke-tested without spending a provider call.
-2. Continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
+1. Continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
+2. Use the implicit-system fixture for future browser regression checks whenever right-side assets, middle derivation, inline Agent trace, or property-analysis UI changes.
 3. Keep monitoring whether deterministic trace planning/summarization remains sufficient before making those steps model-backed.
 
 Recommended next implementation step:
 
-- Add a controlled local/browser fixture for an `implicit_system` project so the right-side assets, middle derivation, inline Agent trace, and property-analysis path can be smoke-tested without spending a provider call.
-- Then continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
+- Continue narrowing the symbolic solver from equation-carrying scaffolds toward actual closed-form detection for small explicit systems.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
 
 ## Boundaries
