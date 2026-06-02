@@ -201,6 +201,12 @@ Current production MVP shape:
 - `npm run smoke:production-persistence` passed against the independent v2 Neon database when Node was run through the local proxy (`HTTP_PROXY`, `HTTPS_PROXY`, and `NODE_OPTIONS=--use-env-proxy`).
 - First Vercel deployment for the independent `paperforge-v2` project is ready at `https://paperforge-v2.vercel.app`; it does not touch the old `paperforge` project.
 - The first deployment initially returned `500 Internal Server Error` because the new project was missing Clerk environment variables. `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, Clerk route URLs, and DeepSeek provider variables have now been added to the v2 production/development environments, and the production homepage returns `200 OK`.
+- Latest production deployment after the sidebar account/settings fix:
+  - deployment id: `dpl_ACm5HhYuNtXXUTqMFMYAqvzzNye1`;
+  - production deployment URL: `https://paperforge-v2-hby9kirjz-musu6856s-projects.vercel.app`;
+  - production alias: `https://paperforge-v2.vercel.app`;
+  - Vercel status: `Ready`;
+  - build completed successfully with the same existing Turbopack `development-project-store.ts` tracing warning.
 - Local `.paperforge-dev/projects.json` storage is development-only and activates only in development guest mode without `DATABASE_URL`.
 - Project assets are stored in the `projects` table. The `research_session` JSONB field carries messages, pending decisions, asset state, and `agentRuns`, so Agent traces persist with the project for the current MVP.
 - Runtime model calls go through `/api/research/generate`, protected by user auth and the existing in-memory rate limiter.
