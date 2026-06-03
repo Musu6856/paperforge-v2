@@ -154,7 +154,15 @@ Latest verification on the current branch:
 - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` `aria-orientation` warning.
 - `npm run build` passed. It reported one Turbopack warning about `next.config.ts` / `development-project-store.ts` tracing, but the production build completed successfully.
 - Browser smoke for the simple-equilibrium fixture passed with the auto-advance checkbox visible and enabled.
+- Release checklist run on 2026-06-04:
+  - `node --test "src/**/*.test.mjs"` passed, 247/247;
+  - `npx tsc --noEmit` passed;
+  - `npm run lint` passed with 0 errors and the existing `pane-splitter.tsx` warning;
+  - `npm run build` passed with the existing Turbopack `development-project-store.ts` tracing warning;
+  - `git diff --check` passed.
 - `npm run smoke:production-persistence` passed against the independent v2 Neon database when Node was run through the local proxy (`HTTP_PROXY`, `HTTPS_PROXY`, and `NODE_OPTIONS=--use-env-proxy`); output included `agentRunSteps: 3` and `updateAgentRuns: 2`. One earlier attempt hit a local `ECONNRESET` before assertions, consistent with the known intermittent local Neon/proxy connection issue.
+- `npm run smoke:production-persistence` also passed directly on 2026-06-04; output included `agentRunSteps: 3` and `updateAgentRuns: 2`, and the smoke script cleaned up the temporary project row.
+- Deployed-app browser smoke is still pending from this environment: Vercel reports the latest deployment as `Ready`, but local DNS resolved `paperforge-v2.vercel.app` and the deployment URL to non-Vercel addresses, so `curl`, command-line page fetch, and the in-app browser could not connect to the app domain.
 - The deployed production app was manually smoke-tested by the user after the release; no major issues were reported.
 - Targeted `implicit_system` tests passed, 43/43:
   - `src/lib/research-session.test.mjs`
@@ -234,6 +242,13 @@ Current production MVP shape:
   - production alias: `https://paperforge-v2.vercel.app`;
   - Vercel status: `Ready`;
   - build completed successfully with the same existing Turbopack `development-project-store.ts` tracing warning.
+- Latest production deployment after the auto-advance and release-checklist work:
+  - deployment id: `dpl_7s7pxwvUsyp9yteXo5WFM96HiBuB`;
+  - production deployment URL: `https://paperforge-v2-8fwb3rghr-musu6856s-projects.vercel.app`;
+  - production alias: `https://paperforge-v2.vercel.app`;
+  - Vercel status: `Ready`;
+  - deployed on 2026-06-04 from commit `0c7bf20`;
+  - Vercel build completed successfully with the same existing Turbopack `development-project-store.ts` tracing warning.
 - Local `.paperforge-dev/projects.json` storage is development-only and activates only in development guest mode without `DATABASE_URL`.
 - Project assets are stored in the `projects` table. The `research_session` JSONB field carries messages, pending decisions, asset state, and `agentRuns`, so Agent traces persist with the project for the current MVP.
 - Runtime model calls go through `/api/research/generate`, protected by user auth and the existing in-memory rate limiter.
@@ -249,6 +264,7 @@ npm run smoke:production-persistence
 
 - Verify the deployed `paperforge-v2` app end to end in the browser now that Clerk and provider environment variables are present.
 - Current local blocker: direct local connections to Neon still time out intermittently, and `npm run db:push` still stalls at "Pulling schema from database...". Local Neon HTTP smoke can pass by routing Node through the local proxy with `NODE_OPTIONS=--use-env-proxy`.
+- Current deployed-app browser-smoke blocker from this machine: DNS for `paperforge-v2.vercel.app` resolves to non-Vercel addresses, while `vercel.com` itself is reachable and `vercel inspect` reports the deployment as `Ready`. Re-run the deployed browser smoke from a browser/network with clean Vercel app-domain resolution.
 - Keep dev fixtures out of the production user flow. `npm run dev:seed:simple-equilibrium` and `npm run dev:seed:implicit-system` are regression tools, not product entry points.
 - Preview environment variables still need a follow-up pass if Git branch previews are required. Production and development now have Clerk keys and DeepSeek following the code fallback order `DEEPSEEK_API_KEY` -> `OPENAI_COMPATIBLE_API_KEY` -> `MIMO_API_KEY` -> `OPENAI_API_KEY`; the v2 Neon variables are also present.
 - Decide whether the in-memory rate limiter is acceptable for the first public demo; for multi-instance production it should move to durable storage.
@@ -265,7 +281,7 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
-- Run the new release checklist against the current production path before the next public demo, then record the deployment URL, production persistence smoke result, and deployed-app browser smoke result in this handoff.
+- Complete the deployed-app browser smoke from a network/browser that resolves Vercel app domains correctly, then record the result in this handoff.
 - Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
