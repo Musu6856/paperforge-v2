@@ -127,6 +127,7 @@ Current scope:
 - Enhanced `npm run smoke:production-persistence`: it now inserts a solved fixture with Agent trace data, reads it back, updates the same project with an additional Agent run, reads it back again, verifies `updateAgentRuns: 2`, and deletes the smoke row.
 - Deployed commit `2173d21` to production at `https://paperforge-v2.vercel.app`; the user completed a deployed-app release smoke and reported no major issues.
 - Browser-smoked the empty local workspace on `http://localhost:3000/research?new=1`: the left sidebar showed the model summary and `设置` button, and opening settings showed `工作台设置`, language controls, and model settings. In the unauthenticated local browser, Clerk's `UserButton` itself renders empty; after login it uses the same toolbar slot.
+- Added `RELEASE_CHECKLIST.md` so future releases follow the same path: local tests, build, local browser fixture smoke, production persistence smoke, deployed-app smoke, and cleanup/recording.
 
 ## Verification Commands
 
@@ -264,7 +265,7 @@ npm run smoke:production-persistence
 
 Recommended next implementation step:
 
-- Add a short production release checklist/runbook so future deploys repeat the same path: local tests, build, production persistence smoke, deployed-app smoke, and cleanup of any smoke projects.
+- Run the new release checklist against the current production path before the next public demo, then record the deployment URL, production persistence smoke result, and deployed-app browser smoke result in this handoff.
 - Improve the demo loop before adding more solver depth: make saved projects, Agent trace details, simple equilibrium solving, property analysis, and local fixtures easy to test and explain as one coherent "this feels like an Agent" flow.
 - If solver work continues, prefer generic simple-model coverage over narrow mechanism-specific extensions. Reaction-function and implicit-system outputs are acceptable for complex models as long as the UI presents them honestly.
 - If planning/summarization become model-backed, keep them cheap and structured; do not replace the current middle derivation content with hidden or generic reasoning text.
